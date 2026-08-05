@@ -1,0 +1,16 @@
+{
+  "name": "sri-invhub-automation-testsuite-poc",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright + TypeScript UI automation framework for SRI Investigation Hub",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^22.10.1",
+    "dotenv": "^16.4.5",
+    "typescript": "^5.6.3"
+  }
+}
