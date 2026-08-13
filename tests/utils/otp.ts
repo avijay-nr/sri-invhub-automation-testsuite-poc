@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
+import { testSettings } from '../configFiles/config';
 
 function readPositiveInt(value: string | undefined, fallback: number): number {
   if (!value) return fallback;
@@ -28,14 +29,14 @@ export async function resolveOtpOrThrow(): Promise<string> {
   const seededOtp = process.env.TEST_OTP?.trim();
   if (seededOtp) return seededOtp;
 
-  const fetchCmd = process.env.OTP_FETCH_CMD?.trim();
+  const fetchCmd = process.env.OTP_FETCH_CMD?.trim() || testSettings.otpFetchCommand;
   if (!fetchCmd) {
     throw new Error('Missing OTP source. Set TEST_OTP or configure OTP_FETCH_CMD.');
   }
 
-  const timeoutSec = readPositiveInt(process.env.OTP_FETCH_TIMEOUT_SEC, 120);
-  const pollSec = readPositiveInt(process.env.OTP_FETCH_POLL_SEC, 5);
-  const regexPattern = process.env.OTP_REGEX?.trim() || '(\\d{6})';
+  const timeoutSec = readPositiveInt(process.env.OTP_FETCH_TIMEOUT_SEC, testSettings.otpFetchTimeoutSec);
+  const pollSec = readPositiveInt(process.env.OTP_FETCH_POLL_SEC, testSettings.otpFetchPollSec);
+  const regexPattern = process.env.OTP_REGEX?.trim() || testSettings.otpRegex;
   const matcher = buildMatcher(regexPattern);
   const deadline = Date.now() + timeoutSec * 1_000;
 

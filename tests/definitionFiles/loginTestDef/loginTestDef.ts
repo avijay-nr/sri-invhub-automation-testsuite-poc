@@ -1,12 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
-import { appConfig } from '../configFiles/config';
-import { resolveOtpOrThrow } from '../utils/otp';
+import { appConfig, testSettings } from '../../configFiles/config';
+import { resolveOtpOrThrow } from '../../utils/otp';
 
 function configureLoginTestTimeoutFromEnv(): void {
   const timeoutFromEnv = process.env.LOGIN_TEST_TIMEOUT_MS?.trim();
-  if (!timeoutFromEnv) return;
+  const timeoutMs = Number.parseInt(timeoutFromEnv || String(testSettings.loginTestTimeoutMs), 10);
 
-  const timeoutMs = Number.parseInt(timeoutFromEnv, 10);
   if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
     test.setTimeout(timeoutMs);
   }
