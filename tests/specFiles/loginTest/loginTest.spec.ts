@@ -1,8 +1,8 @@
 import { test } from '@playwright/test';
-import { appConfig } from '../configFiles/config';
-import { LoginDef } from '../definitionFiles/loginDef';
+import { appConfig } from '../../configFiles/config';
+import { LoginDef } from '../../definitionFiles/loginTestDef/loginTestDef';
 
-test(`simple login smoke - ${appConfig.envName}`, async ({ page }) => {
+test(`Simple Login Smoke Test - ${appConfig.envName}`, async ({ page }) => {
   const loginDef = new LoginDef(page);
   await test.step('Open login page', async () => {
     await loginDef.openLoginPage();

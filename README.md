@@ -47,7 +47,7 @@ Flow for login:
 ```
 
 ## Configuration
-Set values in `.env`:
+Common non-secret defaults are maintained in `tests/configFiles/config.ts` and can be changed there for the team. Local environment variables can override those defaults for a run:
 
 ```env
 TEST_CONFIG=INVHUB_QA
@@ -60,6 +60,8 @@ OTP_FETCH_TIMEOUT_SEC=90
 OTP_FETCH_POLL_SEC=3
 OTP_EMAIL_SUBJECT_HINT=
 ```
+
+Keep local-only values and secrets such as `TEST_OTP`, API keys, and mailbox credentials out of source control.
 
 ## Test Flow
 1. Open login page.
