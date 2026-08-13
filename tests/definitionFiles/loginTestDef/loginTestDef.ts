@@ -2,6 +2,13 @@ import { expect, test, type Page } from '@playwright/test';
 import { appConfig, testSettings } from '../../configFiles/config';
 import { resolveOtpOrThrow } from '../../utils/otp';
 
+const authSelectors = {
+  emailInput: 'input[placeholder="Email"]',
+  sendCodeButton: 'button:has-text("Send verification code")',
+  otpInput: 'input[placeholder*="verification" i], input[placeholder="000000"], input[placeholder*="otp" i], input[name*="otp" i], input[id*="otp" i]',
+  verifyButton: 'button:has-text("Verify")',
+};
+
 function configureLoginTestTimeoutFromEnv(): void {
   const timeoutFromEnv = process.env.LOGIN_TEST_TIMEOUT_MS?.trim();
   const timeoutMs = Number.parseInt(timeoutFromEnv || String(testSettings.loginTestTimeoutMs), 10);
@@ -25,7 +32,7 @@ export class LoginDef {
       await this.page.goto(appConfig.loginUrl, { waitUntil: 'commit', timeout: 45_000 });
     }
 
-    await expect(this.page.locator(appConfig.selectors.emailInput)).toBeVisible({ timeout: 30_000 });
+    await expect(this.page.locator(authSelectors.emailInput)).toBeVisible({ timeout: 30_000 });
   }
 
   async requestOtpForConfiguredUser(): Promise<void> {
@@ -33,13 +40,13 @@ export class LoginDef {
       throw new Error('Set TEST_USER_EMAIL in .env');
     }
 
-    await this.page.locator(appConfig.selectors.emailInput).fill(appConfig.userEmail);
+    await this.page.locator(authSelectors.emailInput).fill(appConfig.userEmail);
     this.otpRequestedAtIso = new Date().toISOString();
-    await this.page.locator(appConfig.selectors.sendCodeButton).click();
+    await this.page.locator(authSelectors.sendCodeButton).click();
   }
 
   async submitOtpAndVerify(): Promise<void> {
-    const otpInput = this.page.locator(appConfig.selectors.otpInput).first();
+    const otpInput = this.page.locator(authSelectors.otpInput).first();
     await expect(otpInput).toBeVisible({ timeout: 30_000 });
 
     if (this.otpRequestedAtIso) {
@@ -48,7 +55,7 @@ export class LoginDef {
     const otp = await resolveOtpOrThrow();
 
     await otpInput.fill(otp);
-    await this.page.locator(appConfig.selectors.verifyButton).click();
+    await this.page.locator(authSelectors.verifyButton).click();
   }
 
   async verifyRedirectToApplicationUi(): Promise<void> {

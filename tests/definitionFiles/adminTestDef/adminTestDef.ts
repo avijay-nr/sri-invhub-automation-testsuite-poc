@@ -1,7 +1,54 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { faker } from '@faker-js/faker';
-import { appConfig, testSettings } from '../../configFiles/config';
+import { testSettings } from '../../configFiles/config';
 import { LoginDef } from '../loginTestDef/loginTestDef';
+
+const adminSelectors = {
+  adminSection: 'a[href*="/admin"], button:has-text("Admin")',
+  configurationManagement: 'a[href*="/admin/config"], button:has-text("Configuration"), [role="menuitem"]:has-text("System Configuration")',
+  configurationPageContainer: 'main, [role="main"], [data-testid*="config" i], [role="region"]',
+  queuesManagement: 'a[href*="/admin/queues"], button:has-text("Queues")',
+  createQueueButton: 'button:has-text("Create Queue"), button:has-text("New Queue")',
+  editQueueButton: 'button:has-text("Edit"), [aria-label*="Edit queue" i]',
+  queueFirstRowLink: 'table tbody tr td a, [role="row"] a[href*="/admin/queues-management/"]',
+  queueNameInput: 'input[name*="queue" i], input[placeholder*="Queue" i], input[id*="queue" i], input[placeholder*="Name" i], input[name*="name" i]',
+  assignmentRuleControl: 'select[name*="assignment" i], [role="combobox"][aria-label*="assignment" i], input[placeholder*="Assignment" i]',
+  assignmentRuleOption: '[role="option"]:has-text("Round Robin"), option:has-text("Round Robin"), [role="option"]',
+  saveQueueButton: 'button:has-text("Save"), button:has-text("Update"), button:has-text("Create")',
+  queueFormContainer: 'form, [role="dialog"], [data-testid*="queue" i]',
+  queueSuccessToast: 'text=/queue (created|updated|saved) successfully/i, [role="status"], [role="alert"]',
+  rolesManagement: 'a[href*="/admin/role"], a[href*="/admin/roles"], button:has-text("Roles"), [role="menuitem"]:has-text("Roles")',
+  rolesListContainer: 'table, [role="table"], [data-testid*="role" i], [role="list"], [role="grid"]',
+  rolePermissionsContainer: '[data-testid*="permission" i], [data-testid*="role-details" i], [role="dialog"], [role="region"], main',
+  rolePermissionControls: 'input[type="checkbox"], [role="checkbox"], [role="switch"], button[role="switch"], [aria-checked]',
+  tagsManagement: 'a[href*="/admin/tag"], a[href*="/admin/tags"], button:has-text("Tags"), [role="menuitem"]:has-text("Tags Management")',
+  createTagButton: 'button:has-text("Create Tag"), button:has-text("New Tag"), button:has-text("Create")',
+  tagFormContainer: 'form, [role="dialog"], [data-testid*="tag" i]',
+  tagNameInput: 'input[name*="tag" i], input[id*="tag" i], input[placeholder*="Tag" i], input[placeholder*="Name" i], input[name*="name" i]',
+  tagCategoryControl: '[role="combobox"][aria-label*="category" i], [aria-label*="Category" i], label:has-text("Category") + * [role="combobox"], label:has-text("Category") + * input',
+  tagDropdownOption: '[role="option"], li[role="option"]',
+  saveTagButton: 'button:has-text("Save"), button:has-text("Create"), button:has-text("Update")',
+  tagSuccessToast: 'text=/tag (created|updated|saved) successfully/i, [role="status"], [role="alert"]',
+  tagsListContainer: 'table, [role="table"], [data-testid*="tag" i]',
+  teamsManagement: 'a[href*="/admin/team"], a[href*="/admin/teams"], button:has-text("Teams"), [role="menuitem"]:has-text("Teams Management")',
+  createTeamButton: 'button:has-text("Create Team"), button:has-text("New Team"), button:has-text("Create")',
+  teamFormContainer: 'form, [role="dialog"], [data-testid*="team" i]',
+  teamNameInput: 'input[name*="team" i], input[id*="team" i], input[placeholder*="Team" i], input[placeholder*="Name" i], input[name*="name" i]',
+  addMembersControl: '[role="combobox"][aria-label*="member" i], input[placeholder*="member" i], input[name*="member" i], [aria-label*="Add member" i]',
+  teamRoleControl: '[role="combobox"][aria-label*="role" i], [aria-label*="Role" i], label:has-text("Role") + * [role="combobox"], label:has-text("Role") + * input',
+  teamQueueControl: '[role="combobox"][aria-label*="queue" i], [aria-label*="Queue" i], label:has-text("Queue") + * [role="combobox"], label:has-text("Queue") + * input',
+  teamDropdownOption: '[role="option"], li[role="option"]',
+  saveTeamButton: 'button:has-text("Save"), button:has-text("Create"), button:has-text("Update")',
+  teamsListContainer: 'table, [role="table"], [data-testid*="team" i]',
+  usersManagement: 'a[href*="/admin/users"], button:has-text("Users")',
+  usersTable: 'table, [role="table"]',
+  usersTableRows: 'table tbody tr, [role="rowgroup"] [role="row"]',
+  workflowsManagement: 'a[href*="/admin/workflow"], a[href*="/admin/workflows"], button:has-text("Workflows"), [role="menuitem"]:has-text("Workflow Management")',
+  workflowFirstItem: 'table tbody tr a, [role="row"] a, [data-testid*="workflow" i] a',
+  workflowEditorContainer: 'main, [role="main"], [data-testid*="workflow" i], [role="region"]',
+};
+
+const appConfig = { selectors: adminSelectors };
 
 // ============================================================================
 // HELPER FUNCTIONS
