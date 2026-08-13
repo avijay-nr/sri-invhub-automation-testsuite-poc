@@ -2,6 +2,21 @@ import { expect, test, type Page } from '@playwright/test';
 import { appConfig, testSettings } from '../../configFiles/config';
 import { resolveOtpOrThrow } from '../../utils/otp';
 
+const authSelectors = {
+  emailInput: 'input[placeholder="Email"]',
+  sendCodeButton: 'button:has-text("Send verification code")',
+  otpInput: 'input[placeholder*="verification" i], input[placeholder="000000"], input[placeholder*="otp" i], input[name*="otp" i], input[id*="otp" i]',
+  verifyButton: 'button:has-text("Verify")',
+  adminSection: 'a[href*="/admin"], button:has-text("Admin")',
+  dashboardButton: 'button:has-text("Investigation Queue"), button:has-text("Dashboard"), button:has-text("Home"), a[href*="/investigation"]',
+  investigationsMenu: 'a[href*="/investigation"], button:has-text("Investigations"), button:has-text("Investigation Queue"), [role="menuitem"]:has-text("Investigations")',
+  adminMenu: 'a[href*="/admin"], button:has-text("Admin"), [role="menuitem"]:has-text("Admin")',
+  userProfileIcon: 'header button:last-of-type, nav button:last-of-type, [role="navigation"] button:last-of-type, button[class*="user"], button[class*="profile"], [class*="header"] button:not([class*="menu"])',
+  userMenu: '[role="menu"], [role="menuitem"], [class*="dropdown"], [class*="menu"]',
+  logoutButton: 'button:has-text("Logout"), button:has-text("Log out"), button:has-text("logout"), a:has-text("Logout"), a:has-text("Log out"), div:has-text("Logout"), [class*="logout"]',
+  invalidCredentialsMessage: '[role="alert"], [data-testid*="error" i], .alert, .error, [class*="error" i]',
+};
+
 // Constants for auth login tests
 const EMAIL_INPUT_TIMEOUT = 30_000;
 const SEND_CODE_TIMEOUT = 30_000;
@@ -33,20 +48,20 @@ export class AuthLoginDef {
       await this.page.goto(appConfig.loginUrl, { waitUntil: 'commit', timeout: 45_000 });
     }
 
-    await expect(this.page.locator(appConfig.selectors.emailInput)).toBeVisible({
+    await expect(this.page.locator(authSelectors.emailInput)).toBeVisible({
       timeout: EMAIL_INPUT_TIMEOUT,
     });
   }
 
   async verifyLoginPageDisplayed(): Promise<void> {
-    const emailInput = this.page.locator(appConfig.selectors.emailInput).first();
-    const sendCodeButton = this.page.locator(appConfig.selectors.sendCodeButton).first();
+    const emailInput = this.page.locator(authSelectors.emailInput).first();
+    const sendCodeButton = this.page.locator(authSelectors.sendCodeButton).first();
     await expect(emailInput).toBeVisible({ timeout: EMAIL_INPUT_TIMEOUT });
     await expect(sendCodeButton).toBeVisible({ timeout: SEND_CODE_TIMEOUT });
   }
 
   async enterEmail(email: string): Promise<void> {
-    const emailInput = this.page.locator(appConfig.selectors.emailInput).first();
+    const emailInput = this.page.locator(authSelectors.emailInput).first();
     await expect(emailInput).toBeVisible({ timeout: EMAIL_INPUT_TIMEOUT });
     await emailInput.fill(email);
 
@@ -60,21 +75,21 @@ export class AuthLoginDef {
     }
 
     this.otpRequestedAtIso = new Date().toISOString();
-    await this.page.locator(appConfig.selectors.sendCodeButton).click();
+    await this.page.locator(authSelectors.sendCodeButton).click();
 
-    const otpInput = this.page.locator(appConfig.selectors.otpInput).first();
+    const otpInput = this.page.locator(authSelectors.otpInput).first();
     await expect(otpInput).toBeVisible({ timeout: OTP_INPUT_TIMEOUT });
   }
 
   async verifyOtpInputReady(): Promise<void> {
-    const otpInput = this.page.locator(appConfig.selectors.otpInput).first();
+    const otpInput = this.page.locator(authSelectors.otpInput).first();
     await expect(otpInput).toBeVisible({ timeout: OTP_INPUT_TIMEOUT });
     const isEnabled = await otpInput.isEnabled();
     expect(isEnabled).toBe(true);
   }
 
   async submitOtp(): Promise<void> {
-    const otpInput = this.page.locator(appConfig.selectors.otpInput).first();
+    const otpInput = this.page.locator(authSelectors.otpInput).first();
     await expect(otpInput).toBeVisible({ timeout: OTP_INPUT_TIMEOUT });
 
     if (this.otpRequestedAtIso) {
@@ -83,7 +98,7 @@ export class AuthLoginDef {
     const otp = await resolveOtpOrThrow();
 
     await otpInput.fill(otp);
-    await this.page.locator(appConfig.selectors.verifyButton).click();
+    await this.page.locator(authSelectors.verifyButton).click();
   }
 
   async verifyRedirectToDashboard(): Promise<void> {
@@ -93,8 +108,8 @@ export class AuthLoginDef {
   }
 
   async verifyDashboardElementsVisible(): Promise<void> {
-    const dashboardElement = this.page.locator((appConfig.selectors as any).dashboardButton).first();
-    const adminElement = this.page.locator(appConfig.selectors.adminSection).first();
+    const dashboardElement = this.page.locator(authSelectors.dashboardButton).first();
+    const adminElement = this.page.locator(authSelectors.adminSection).first();
 
     const dashboardVisible = await dashboardElement.isVisible().catch(() => false);
     const adminVisible = await adminElement.isVisible().catch(() => false);
@@ -103,14 +118,14 @@ export class AuthLoginDef {
   }
 
   async submitWrongOtp(wrongOtp: string): Promise<void> {
-    const otpInput = this.page.locator(appConfig.selectors.otpInput).first();
+    const otpInput = this.page.locator(authSelectors.otpInput).first();
     await expect(otpInput).toBeVisible({ timeout: OTP_INPUT_TIMEOUT });
     await otpInput.fill(wrongOtp);
-    await this.page.locator(appConfig.selectors.verifyButton).click();
+    await this.page.locator(authSelectors.verifyButton).click();
   }
 
   async verifyErrorMessageDisplayed(): Promise<void> {
-    const errorMessage = this.page.locator((appConfig.selectors as any).invalidCredentialsMessage).first();
+    const errorMessage = this.page.locator(authSelectors.invalidCredentialsMessage).first();
     await expect(errorMessage).toBeVisible({ timeout: SEND_CODE_TIMEOUT });
   }
 
@@ -140,14 +155,14 @@ export class AuthLoginDef {
 
   async verifyDashboardAccessible(): Promise<boolean> {
     const currentUrl = this.page.url();
-    const dashboardElement = this.page.locator((appConfig.selectors as any).dashboardButton).first();
+    const dashboardElement = this.page.locator(authSelectors.dashboardButton).first();
     const isOnDashboard = currentUrl.includes(appConfig.postLoginPath);
     const isDashboardVisible = await dashboardElement.isVisible().catch(() => false);
     return isOnDashboard || isDashboardVisible;
   }
 
   async verifyAdminSectionAccessible(): Promise<boolean> {
-    const adminButton = this.page.locator(appConfig.selectors.adminSection).first();
+    const adminButton = this.page.locator(authSelectors.adminSection).first();
     return await adminButton.isVisible().catch(() => false);
   }
 
@@ -164,7 +179,7 @@ export class AuthLoginDef {
       emailRegex ? this.page.getByRole('button', { name: emailRegex }).first() : null,
       this.page.locator('[role="complementary"] button:has-text("@")').first(),
       this.page.locator('[role="complementary"] [role="button"]').filter({ hasText: /@/ }).first(),
-      this.page.locator((appConfig.selectors as any).userProfileIcon).first(),
+      this.page.locator(authSelectors.userProfileIcon).first(),
     ].filter(Boolean) as Array<ReturnType<Page['locator']>>;
 
     for (const candidate of candidateIcons) {
@@ -178,18 +193,18 @@ export class AuthLoginDef {
   }
 
   async verifyUserMenuDropdown(): Promise<void> {
-    const userMenu = this.page.locator((appConfig.selectors as any).userMenu).first();
+    const userMenu = this.page.locator(authSelectors.userMenu).first();
     await expect(userMenu).toBeVisible({ timeout: EMAIL_INPUT_TIMEOUT });
   }
 
   async clickLogoutButton(): Promise<void> {
-    const userMenu = this.page.locator((appConfig.selectors as any).userMenu).first();
+    const userMenu = this.page.locator(authSelectors.userMenu).first();
     const logoutCandidates = [
       userMenu.getByRole('menuitem', { name: /logout|log out/i }).first(),
       userMenu.getByRole('button', { name: /logout|log out/i }).first(),
       this.page.getByRole('menuitem', { name: /logout|log out/i }).first(),
       this.page.getByRole('button', { name: /logout|log out/i }).first(),
-      this.page.locator((appConfig.selectors as any).logoutButton).first(),
+      this.page.locator(authSelectors.logoutButton).first(),
     ];
 
     for (const candidate of logoutCandidates) {
@@ -208,7 +223,7 @@ export class AuthLoginDef {
     await expect(this.page).toHaveURL(new RegExp(appConfig.loginUrl));
     
     // Verify login form is visible
-    const emailInput = this.page.locator(appConfig.selectors.emailInput).first();
+    const emailInput = this.page.locator(authSelectors.emailInput).first();
     await expect(emailInput).toBeVisible({ timeout: EMAIL_INPUT_TIMEOUT });
   }
 
@@ -221,18 +236,18 @@ export class AuthLoginDef {
   }
 
   async verifyInvestigationsMenuVisible(): Promise<void> {
-    const investigationsMenu = this.page.locator((appConfig.selectors as any).investigationsMenu).first();
+    const investigationsMenu = this.page.locator(authSelectors.investigationsMenu).first();
     await expect(investigationsMenu).toBeVisible({ timeout: EMAIL_INPUT_TIMEOUT });
   }
 
   async verifyAdminMenuNotVisible(): Promise<void> {
-    const adminMenu = this.page.locator((appConfig.selectors as any).adminMenu).first();
+    const adminMenu = this.page.locator(authSelectors.adminMenu).first();
     const isVisible = await adminMenu.isVisible().catch(() => false);
     expect(isVisible).toBe(false);
   }
 
   async verifyAdminMenuVisible(): Promise<void> {
-    const adminMenu = this.page.locator((appConfig.selectors as any).adminMenu).first();
+    const adminMenu = this.page.locator(authSelectors.adminMenu).first();
     await expect(adminMenu).toBeVisible({ timeout: EMAIL_INPUT_TIMEOUT });
   }
 }

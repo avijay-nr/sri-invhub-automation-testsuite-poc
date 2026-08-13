@@ -3,6 +3,16 @@ import { faker } from '@faker-js/faker';
 import { appConfig } from '../../configFiles/config';
 import { LoginDef } from '../loginTestDef/loginTestDef';
 
+const caseSelectors = {
+  casesMenu: 'a[href*="/investigation"], button:has-text("Investigation Queue"), button:has-text("Cases"), [role="menuitem"]:has-text("Investigation Queue"), [role="menuitem"]:has-text("Cases")',
+  createCaseButton: 'button:has-text("New Case"), button:has-text("Create Case"), button:has-text("Create")',
+  caseFormContainer: 'form, [role="dialog"], [data-testid*="case" i]',
+  caseNameInput: 'input[name*="case" i], input[id*="case" i], input[placeholder*="case name" i], input[placeholder*="name" i]',
+  caseDescriptionInput: 'textarea[name*="description" i], textarea[placeholder*="description" i], [aria-label*="description" i], textarea',
+  saveCaseButton: 'button:has-text("Create"), button:has-text("Save"), button:has-text("Submit")',
+  caseSuccessToast: 'text=/case (created|updated|saved|success)/i, [role="status"], [role="alert"]',
+};
+
 function buildCaseName(): string {
   const explicitCaseName = process.env.CASE_NAME?.trim();
   if (explicitCaseName) return explicitCaseName;
@@ -95,7 +105,7 @@ export class CaseDef {
     if (await caseMenuByRole.isVisible().catch(() => false)) {
       await caseMenuByRole.click();
     } else {
-      const caseMenuBySelector = this.page.locator(appConfig.selectors.casesMenu).first();
+      const caseMenuBySelector = this.page.locator(caseSelectors.casesMenu).first();
       await expect(caseMenuBySelector).toBeVisible({ timeout: 30_000 });
       await caseMenuBySelector.click();
     }
@@ -163,25 +173,25 @@ export class CaseDef {
     if (await createByRole.isVisible().catch(() => false)) {
       await createByRole.click();
     } else {
-      const createBySelector = this.page.locator(appConfig.selectors.createCaseButton).first();
+      const createBySelector = this.page.locator(caseSelectors.createCaseButton).first();
       await expect(createBySelector).toBeVisible({ timeout: 30_000 });
       await createBySelector.click();
     }
 
-    const formBySelector = this.page.locator(appConfig.selectors.caseFormContainer).first();
+    const formBySelector = this.page.locator(caseSelectors.caseFormContainer).first();
     if (await formBySelector.isVisible().catch(() => false)) {
       await expect(formBySelector).toBeVisible({ timeout: 30_000 });
       return;
     }
 
-    const caseNameInput = this.page.locator(appConfig.selectors.caseNameInput).first();
+    const caseNameInput = this.page.locator(caseSelectors.caseNameInput).first();
     await expect(caseNameInput).toBeVisible({ timeout: 30_000 });
   }
 
   async enterCaseName(): Promise<void> {
     const caseNameByLabel = this.page.getByLabel(/\*?name|case name/i).first();
     const caseNameByPlaceholder = this.page.getByPlaceholder(/case name|enter name/i).first();
-    const caseNameBySelector = this.page.locator(appConfig.selectors.caseNameInput).first();
+    const caseNameBySelector = this.page.locator(caseSelectors.caseNameInput).first();
 
     let caseNameInput = caseNameByLabel;
     if (!(await caseNameInput.isVisible().catch(() => false))) {
@@ -199,7 +209,7 @@ export class CaseDef {
   async enterCaseDescription(): Promise<void> {
     const descriptionByLabel = this.page.getByLabel(/description/i).first();
     const descriptionByPlaceholder = this.page.getByPlaceholder(/description|enter description/i).first();
-    const descriptionBySelector = this.page.locator(appConfig.selectors.caseDescriptionInput).first();
+    const descriptionBySelector = this.page.locator(caseSelectors.caseDescriptionInput).first();
 
     let descriptionInput = descriptionByLabel;
     if (!(await descriptionInput.isVisible().catch(() => false))) {
@@ -311,13 +321,13 @@ export class CaseDef {
       return;
     }
 
-    const saveBySelector = this.page.locator(appConfig.selectors.saveCaseButton).first();
+    const saveBySelector = this.page.locator(caseSelectors.saveCaseButton).first();
     await expect(saveBySelector).toBeVisible({ timeout: 30_000 });
     await saveBySelector.click();
   }
 
   async verifyCaseCreatedSuccessfully(): Promise<void> {
-    const successToast = this.page.locator(appConfig.selectors.caseSuccessToast).first();
+    const successToast = this.page.locator(caseSelectors.caseSuccessToast).first();
     const toastVisible = await successToast.isVisible({ timeout: 10_000 }).catch(() => false);
     if (toastVisible) return;
 
@@ -548,15 +558,29 @@ export class CaseDef {
   }
 
   async openConnectedSubjects(): Promise<void> {
-    await this.page.getByText(/^connected subjects$/i).first().click();
+    const connectedSubjectsButton = this.page
+      .getByRole('button', { name: /^connected subjects$/i })
+      .first();
+    await expect(connectedSubjectsButton).toBeVisible({ timeout: 30_000 });
+    await connectedSubjectsButton.click();
   }
 
   async verifyConnectedSubjectsDetails(): Promise<void> {
-    await expect(this.page.getByText(/connected subjects/i).first()).toBeVisible({ timeout: 30_000 });
-    for (const label of ['Name', 'Risk Score', 'Status']) {
-      await expect(this.page.getByText(new RegExp(`^${label}$`, 'i')).last()).toBeVisible({ timeout: 15_000 });
+    await expect(
+      this.page.getByRole('heading', { name: /^connected subjects$/i }).or(
+        this.page.getByRole('button', { name: /^connected subjects$/i }),
+      ).first(),
+    ).toBeVisible({ timeout: 30_000 });
+
+    const expectedHeaders = ['Subject ID', 'Subject Name', 'Subject Details', 'Role', 'Subject Type'];
+    for (const header of expectedHeaders) {
+      await expect(this.page.getByRole('columnheader', { name: new RegExp(`^${header}$`, 'i') }).first())
+        .toBeVisible({ timeout: 15_000 });
     }
-    const subjectRows = this.page.locator('table tbody tr, [role="rowgroup"] [role="row"]');
+
+    const subjectRows = this.page
+      .locator('table tbody tr, [role="rowgroup"] [role="row"]')
+      .filter({ hasNotText: /no data found|no records|no results/i });
     await expect(subjectRows.first()).toBeVisible({ timeout: 30_000 });
   }
 

@@ -78,7 +78,7 @@ test(`TC-AUTH-003: Session Timeout - ${appConfig.envName}`, async ({ page }) => 
   await test.step('Step 4: Verify can still perform actions while session active', async () => {
     const isAdminVisible = await authLoginDef.verifyAdminSectionAccessible();
     if (isAdminVisible) {
-      await page.locator(appConfig.selectors.adminSection).first().click().catch(() => {});
+      await page.getByRole('button', { name: /^admin$/i }).first().click().catch(() => {});
     }
     await authLoginDef.verifyNotOnLoginPage();
   });
