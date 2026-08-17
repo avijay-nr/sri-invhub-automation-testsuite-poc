@@ -171,51 +171,94 @@ export class AuthLoginDef {
     expect(currentUrl).not.toContain(appConfig.loginUrl);
   }
 
-  async clickUserProfileIcon(): Promise<void> {
-    const email = appConfig.userEmail?.trim();
-    const emailRegex = email ? new RegExp(email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
+async clickUserProfileIcon(): Promise<void> {
+  const email = appConfig.userEmail?.trim() || '';
+  const userNamePart = email.split('@')[0] || '';
 
-    const candidateIcons = [
-      emailRegex ? this.page.getByRole('button', { name: emailRegex }).first() : null,
-      this.page.locator('[role="complementary"] button:has-text("@")').first(),
-      this.page.locator('[role="complementary"] [role="button"]').filter({ hasText: /@/ }).first(),
-      this.page.locator(authSelectors.userProfileIcon).first(),
-    ].filter(Boolean) as Array<ReturnType<Page['locator']>>;
+  // ✅ Wait for sidebar to fully render after fresh login
+  await this.page.locator('button, [role="button"]').filter({
+    hasText: new RegExp(userNamePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+  }).first().waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {});
 
-    for (const candidate of candidateIcons) {
-      if (await candidate.isVisible().catch(() => false)) {
-        await candidate.click();
-        return;
-      }
+  const emailRegex = email ? new RegExp(email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
+  const candidateIcons = [
+    emailRegex ? this.page.getByRole('button', { name: emailRegex }).first() : null,
+    this.page.locator('button').filter({ hasText: new RegExp(userNamePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }).first(),
+    this.page.locator('[role="complementary"] button:has-text("@")').first(),
+    this.page.locator('[role="complementary"] [role="button"]').filter({ hasText: /@/ }).first(),
+    this.page.locator(authSelectors.userProfileIcon).first(),
+  ].filter(Boolean) as Array<ReturnType<Page['locator']>>;
+
+  for (const candidate of candidateIcons) {
+    if (await candidate.isVisible().catch(() => false)) {
+      await candidate.click();
+      await this.page.waitForTimeout(1_000);
+      return;
     }
-
-    throw new Error('Unable to find the user profile/login icon in the sidebar.');
   }
+  throw new Error('Unable to find the user profile/login icon in the sidebar.');
+}
 
   async verifyUserMenuDropdown(): Promise<void> {
     const userMenu = this.page.locator(authSelectors.userMenu).first();
     await expect(userMenu).toBeVisible({ timeout: EMAIL_INPUT_TIMEOUT });
   }
 
-  async clickLogoutButton(): Promise<void> {
-    const userMenu = this.page.locator(authSelectors.userMenu).first();
-    const logoutCandidates = [
-      userMenu.getByRole('menuitem', { name: /logout|log out/i }).first(),
-      userMenu.getByRole('button', { name: /logout|log out/i }).first(),
-      this.page.getByRole('menuitem', { name: /logout|log out/i }).first(),
-      this.page.getByRole('button', { name: /logout|log out/i }).first(),
-      this.page.locator(authSelectors.logoutButton).first(),
-    ];
+async clickLogoutButton(): Promise<void> {
+  await this.page.waitForTimeout(1_500);
 
-    for (const candidate of logoutCandidates) {
-      if (await candidate.isVisible().catch(() => false)) {
-        await candidate.click();
-        return;
-      }
-    }
+  // ✅ Zoom out to 67% so full sidebar fits on screen
+  await this.page.evaluate(() => {
+    document.body.style.zoom = '0.67';
+  });
 
-    throw new Error('Logout option was not visible after opening the user menu.');
+  await this.page.waitForTimeout(500);
+
+  // Step 1: Exact text match
+  const logoutLink = this.page.getByText('Logout', { exact: true }).first();
+  if (await logoutLink.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await logoutLink.click();
+    // ✅ Restore zoom after click
+    await this.page.evaluate(() => { document.body.style.zoom = '1'; });
+    return;
   }
+
+  // Step 2: JS force-click fallback
+  const clicked = await this.page.evaluate(() => {
+    const el = [...document.querySelectorAll('a, button, li, div, span')]
+      .find(e => e.textContent?.trim() === 'Logout');
+    if (el) {
+      (el as HTMLElement).click();
+      return true;
+    }
+    return false;
+  });
+
+  if (clicked) {
+    await this.page.evaluate(() => { document.body.style.zoom = '1'; });
+    return;
+  }
+
+  // Step 3: Playwright fallback
+  const logoutCandidates = [
+    this.page.getByRole('menuitem', { name: /logout|log\s*out|sign\s*out/i }).first(),
+    this.page.getByRole('button', { name: /logout|log\s*out|sign\s*out/i }).first(),
+    this.page.locator(authSelectors.logoutButton).first(),
+  ];
+
+  for (const candidate of logoutCandidates) {
+    if (await candidate.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await candidate.click({ force: true });
+      await this.page.evaluate(() => { document.body.style.zoom = '1'; });
+      return;
+    }
+  }
+
+  const bodyText = await this.page.locator('body').textContent().catch(() => '');
+  throw new Error(
+    `Logout option was not visible after all attempts.\nPage text (first 500 chars): "${bodyText?.slice(0, 500)}"`
+  );
+}
 
   async verifyLoggedOut(): Promise<void> {
     // Wait for redirect to login page after logout

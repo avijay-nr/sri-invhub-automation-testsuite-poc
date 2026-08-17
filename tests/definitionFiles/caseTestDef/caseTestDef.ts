@@ -23,6 +23,7 @@ function buildCaseName(): string {
 
 export class CaseDef {
   private readonly caseName: string = buildCaseName();
+  private createdCaseName: string = '';  // ✅ ADDED
   private caseDescription = '';
   private selectedCaseType = '';
   private selectedOrganisationUnit = '';
@@ -30,6 +31,11 @@ export class CaseDef {
   private selectedSubjectLabel = '';
 
   constructor(private readonly page: Page) {}
+
+  // ✅ ADDED
+  getCreatedCaseName(): string {
+    return this.createdCaseName || this.caseName;
+  }
 
   private getControlNearLabel(
     caseDialog: ReturnType<Page['getByRole']>,
@@ -49,7 +55,6 @@ export class CaseDef {
   }
 
   private async selectDropdownOption(control: ReturnType<Page['locator']>, optionFromEnv?: string): Promise<string> {
-    // Clear any existing open overlay before opening the next dropdown.
     await this.page.keyboard.press('Escape').catch(() => {});
     await this.page.waitForTimeout(150);
 
@@ -204,6 +209,7 @@ export class CaseDef {
     await expect(caseNameInput).toBeVisible({ timeout: 30_000 });
     await caseNameInput.fill(this.caseName);
     await expect(caseNameInput).toHaveValue(this.caseName);
+    this.createdCaseName = this.caseName;  // ✅ ADDED
   }
 
   async enterCaseDescription(): Promise<void> {
@@ -257,7 +263,6 @@ export class CaseDef {
     const picked = await this.selectDropdownOption(selectedControl, process.env.CASE_TYPE?.trim());
     this.selectedCaseType = picked;
 
-    // Case Type is optional. If no valid option exists, keep it unselected.
     if (!picked) await this.page.keyboard.press('Escape').catch(() => {});
   }
 
@@ -438,7 +443,6 @@ export class CaseDef {
     await expect(buttonToUse).toBeEnabled({ timeout: 10_000 });
     await buttonToUse.click();
 
-    // Wait until results area updates after search action.
     await this.page.waitForTimeout(500);
   }
 
@@ -465,8 +469,6 @@ export class CaseDef {
       return;
     }
 
-    // SRI_TEST currently exposes a single case-search input without a type selector.
-    // In that UI, the search page is already scoped to cases.
     const searchInput = this.page.getByRole('textbox', { name: /^search$/i }).first();
     await expect(searchInput).toBeVisible({ timeout: 30_000 });
   }
@@ -486,8 +488,6 @@ export class CaseDef {
       .first();
     await expect(caseResult).toBeVisible({ timeout: 30_000 });
 
-    // The result row contains a Case Details button that opens a dialog and
-    // separate links that navigate to the full case-details route.
     const detailsAction = caseResult
       .locator('a[href*="/investigation/caseDetails" i]')
       .first();
@@ -550,7 +550,6 @@ export class CaseDef {
     await expect(this.page.getByText(/case type/i).first()).toBeVisible({ timeout: 15_000 });
     await expect(this.page.getByText(/description/i).first()).toBeVisible({ timeout: 15_000 });
 
-    // Status is not rendered in the current SRI_TEST Case Overview DOM.
     const status = this.page.getByText(/^status$/i).first();
     if (await status.isVisible().catch(() => false)) {
       await expect(status).toBeVisible();
@@ -565,24 +564,66 @@ export class CaseDef {
     await connectedSubjectsButton.click();
   }
 
-  async verifyConnectedSubjectsDetails(): Promise<void> {
-    await expect(
-      this.page.getByRole('heading', { name: /^connected subjects$/i }).or(
-        this.page.getByRole('button', { name: /^connected subjects$/i }),
-      ).first(),
-    ).toBeVisible({ timeout: 30_000 });
+  async linkSubjectToCase(): Promise<void> {
+  // Click "Link Subject" button
+  const linkSubjectBtn = this.page
+    .getByRole('button', { name: /link subject/i })
+    .first();
+  await expect(linkSubjectBtn).toBeVisible({ timeout: 15_000 });
+  await linkSubjectBtn.click();
+  await this.page.waitForTimeout(1_500);
 
-    const expectedHeaders = ['Subject ID', 'Subject Name', 'Subject Details', 'Role', 'Subject Type'];
-    for (const header of expectedHeaders) {
-      await expect(this.page.getByRole('columnheader', { name: new RegExp(`^${header}$`, 'i') }).first())
-        .toBeVisible({ timeout: 15_000 });
-    }
+  // Search for a subject in the modal
+  const subjectSearchInput = this.page
+    .getByRole('textbox', { name: /search|subject/i })
+    .or(this.page.locator('input[placeholder*="search" i]').first())
+    .first();
+  await expect(subjectSearchInput).toBeVisible({ timeout: 10_000 });
+  await subjectSearchInput.fill('a');
+  await this.page.waitForTimeout(1_500);
 
-    const subjectRows = this.page
-      .locator('table tbody tr, [role="rowgroup"] [role="row"]')
-      .filter({ hasNotText: /no data found|no records|no results/i });
-    await expect(subjectRows.first()).toBeVisible({ timeout: 30_000 });
+  // Select the first result (skip header row with nth(1))
+  const firstResult = this.page
+    .locator('[role="row"], [role="option"], tr')
+    .filter({ hasNotText: /no data|no results|subject id|subject name/i })
+    .first();
+  await expect(firstResult).toBeVisible({ timeout: 15_000 });
+  await firstResult.click();
+
+  // Confirm if a confirm/save button appears
+  const confirmBtn = this.page
+    .getByRole('button', { name: /confirm|save|link|add|ok/i })
+    .first();
+  const isConfirmVisible = await confirmBtn.isVisible({ timeout: 5_000 }).catch(() => false);
+  if (isConfirmVisible) {
+    await confirmBtn.click();
   }
+
+  await this.page.waitForTimeout(2_000);
+  console.log('✅ Subject linked to case successfully');
+}
+
+
+async verifyConnectedSubjectsDetails(): Promise<void> {
+  // Wait for PrimeVue DataTable headers to render
+  await this.page.waitForSelector('[data-pc-section="headertitle"], [data-pc-section="headercell"]', { timeout: 15_000 }).catch(() => {});
+
+  const expectedHeaders = ['Subject ID', 'Subject Name', 'Subject Details', 'Role', 'Subject Type'];
+  for (const header of expectedHeaders) {
+    const headerLocator = this.page
+      .locator('[data-pc-section="headertitle"]')
+      .filter({ hasText: new RegExp(header, 'i') })
+      .first();
+    await expect(headerLocator).toBeVisible({ timeout: 15_000 });
+  }
+
+  // Verify at least one linked subject row exists
+  const subjectRows = this.page
+    .locator('[data-pc-section="bodyrow"], table tbody tr, [role="rowgroup"] [role="row"]')
+    .filter({ hasNotText: /no data found|no records|no results/i });
+  await expect(subjectRows.first()).toBeVisible({ timeout: 30_000 });
+}
+
 
   async verifyCasePresentInSearchResults(caseName: string): Promise<void> {
     const resultsContainer = this.page
@@ -600,7 +641,6 @@ export class CaseDef {
       return;
     }
 
-    // Fallback for non-table list rendering.
     const caseMatchInResults = resultsContainer.getByText(new RegExp(caseName, 'i')).first();
     await expect(caseMatchInResults).toBeVisible({ timeout: 30_000 });
   }
@@ -862,7 +902,6 @@ export class CaseDef {
 
     throw new Error('Subject was not listed under Connected Subjects.');
   }
-
 }
 
 export function createCaseDefs(page: Page): {

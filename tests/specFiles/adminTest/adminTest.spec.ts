@@ -15,14 +15,19 @@ import { AdminTeamsDef } from '../../definitionFiles/adminTestDef/adminTestDef';
 import { AdminUsersDef } from '../../definitionFiles/adminTestDef/adminTestDef';
 import { AdminWorkflowsDef } from '../../definitionFiles/adminTestDef/adminTestDef';
 
+// ✅ After every test — save final rotated tokens to session.json
+// App JS rotates tokens during test execution; this captures the very last state
+// so the next test run always starts with valid tokens (no OTP needed!)
+test.afterEach(async ({ page }) => {
+  const loginDef = new LoginDef(page);
+  await loginDef.saveFinalTokens();
+});
+
 // TC-ADMIN-001: View Users List
-test(`TC-ADMIN-001: View Users List (Admin) - ${appConfig.envName}`, async ({ page }) => {
+test(`View Users List (Admin) - ${appConfig.envName} @admin_TC0001`, async ({ page }) => {
   const loginDef = new LoginDef(page);
   await test.step('Login to application', async () => {
-    await loginDef.openLoginPage();
-    await loginDef.requestOtpForConfiguredUser();
-    await loginDef.submitOtpAndVerify();
-    await loginDef.verifyRedirectToApplicationUi();
+    await loginDef.loginIfNeeded();
   });
   const adminUsersDef = new AdminUsersDef(page);
   await test.step('Navigate to Admin section', async () => {
@@ -43,14 +48,11 @@ test(`TC-ADMIN-001: View Users List (Admin) - ${appConfig.envName}`, async ({ pa
 });
 
 // TC-ADMIN-002: Create Team
-test(`TC-ADMIN-002: Create Team (Admin) - ${appConfig.envName}`, async ({ page }) => {
+test(`TC-ADMIN-002: Create Team (Admin) - ${appConfig.envName} @admin_TC0002`, async ({ page }) => {
   const loginDef = new LoginDef(page);
   const adminTeamsDef = new AdminTeamsDef(page);
   await test.step('Login as admin user', async () => {
-    await loginDef.openLoginPage();
-    await loginDef.requestOtpForConfiguredUser();
-    await loginDef.submitOtpAndVerify();
-    await loginDef.verifyRedirectToApplicationUi();
+    await loginDef.loginIfNeeded();
   });
   await test.step('Navigate to Admin > Teams', async () => {
     await adminTeamsDef.navigateToAdminSection();
@@ -83,13 +85,10 @@ test(`TC-ADMIN-002: Create Team (Admin) - ${appConfig.envName}`, async ({ page }
 });
 
 // TC-ADMIN-003: Configure Queue
-test(`TC-ADMIN-003: Configure Queue (Admin) - ${appConfig.envName}`, async ({ page }) => {
+test(`TC-ADMIN-003: Configure Queue (Admin) - ${appConfig.envName} @admin_TC0003`, async ({ page }) => {
   const { loginDef, adminQueuesDef } = createAdminQueuesDefs(page);
   await test.step('Login as admin user', async () => {
-    await loginDef.openLoginPage();
-    await loginDef.requestOtpForConfiguredUser();
-    await loginDef.submitOtpAndVerify();
-    await loginDef.verifyRedirectToApplicationUi();
+    await loginDef.loginIfNeeded();
   });
   await test.step('Navigate to Admin > Queues', async () => {
     await adminQueuesDef.navigateToAdminSection();
@@ -116,14 +115,11 @@ test(`TC-ADMIN-003: Configure Queue (Admin) - ${appConfig.envName}`, async ({ pa
 });
 
 // TC-ADMIN-004: View Workflow Configuration
-test(`TC-ADMIN-004: View Workflow Configuration (Admin) - ${appConfig.envName}`, async ({ page }) => {
+test(`TC-ADMIN-004: View Workflow Configuration (Admin) - ${appConfig.envName} @admin_TC0004`, async ({ page }) => {
   const loginDef = new LoginDef(page);
   const adminWorkflowsDef = new AdminWorkflowsDef(page);
   await test.step('Login as admin user', async () => {
-    await loginDef.openLoginPage();
-    await loginDef.requestOtpForConfiguredUser();
-    await loginDef.submitOtpAndVerify();
-    await loginDef.verifyRedirectToApplicationUi();
+    await loginDef.loginIfNeeded();
   });
   await test.step('Navigate to Admin > Workflows', async () => {
     await adminWorkflowsDef.navigateToAdminSection();
@@ -141,14 +137,11 @@ test(`TC-ADMIN-004: View Workflow Configuration (Admin) - ${appConfig.envName}`,
 });
 
 // TC-ADMIN-005: Create Tag
-test(`TC-ADMIN-005: Create Tag (Admin) - ${appConfig.envName}`, async ({ page }) => {
+test(`TC-ADMIN-005: Create Tag (Admin) - ${appConfig.envName} @admin_TC0005`, async ({ page }) => {
   const loginDef = new LoginDef(page);
   const adminTagsDef = new AdminTagsDef(page);
   await test.step('Login as admin user', async () => {
-    await loginDef.openLoginPage();
-    await loginDef.requestOtpForConfiguredUser();
-    await loginDef.submitOtpAndVerify();
-    await loginDef.verifyRedirectToApplicationUi();
+    await loginDef.loginIfNeeded();
   });
   await test.step('Navigate to Admin > Tags', async () => {
     await adminTagsDef.navigateToAdminSection();
@@ -175,13 +168,10 @@ test(`TC-ADMIN-005: Create Tag (Admin) - ${appConfig.envName}`, async ({ page })
 });
 
 // TC-ADMIN-006: System Configuration View
-test(`TC-ADMIN-006: System Configuration View (Admin) - ${appConfig.envName}`, async ({ page }) => {
+test(`TC-ADMIN-006: System Configuration View (Admin) - ${appConfig.envName} @admin_TC0006`, async ({ page }) => {
   const { loginDef, adminConfigDef } = createAdminConfigDefs(page);
   await test.step('Login as admin user', async () => {
-    await loginDef.openLoginPage();
-    await loginDef.requestOtpForConfiguredUser();
-    await loginDef.submitOtpAndVerify();
-    await loginDef.verifyRedirectToApplicationUi();
+    await loginDef.loginIfNeeded();
   });
   await test.step('Navigate to Admin > Configuration', async () => {
     await adminConfigDef.navigateToAdminSection();
@@ -196,13 +186,10 @@ test(`TC-ADMIN-006: System Configuration View (Admin) - ${appConfig.envName}`, a
 });
 
 // TC-ADMIN-007: View and Edit Roles
-test(`TC-ADMIN-007: View and Edit Roles (Admin) - ${appConfig.envName}`, async ({ page }) => {
+test(`TC-ADMIN-007: View and Edit Roles (Admin) - ${appConfig.envName} @admin_TC0007`, async ({ page }) => {
   const { loginDef, adminRolesDef } = createAdminRolesDefs(page);
   await test.step('Login as admin user', async () => {
-    await loginDef.openLoginPage();
-    await loginDef.requestOtpForConfiguredUser();
-    await loginDef.submitOtpAndVerify();
-    await loginDef.verifyRedirectToApplicationUi();
+    await loginDef.loginIfNeeded();
   });
   await test.step('Navigate to Admin > Roles', async () => {
     await adminRolesDef.navigateToAdminSection();

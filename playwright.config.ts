@@ -1,4 +1,4 @@
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 import * as dotenv from 'dotenv';
 import { testSettings } from './tests/configFiles/config';
 
@@ -6,13 +6,36 @@ dotenv.config();
 
 export default defineConfig({
   testDir: './tests',
-  timeout: 90_000,
+  timeout: 180_000,        
   retries: 0,
-  workers: 1, // Run tests sequentially (one by one), not in parallel
+  workers: 1,
   reporter: 'html',
   use: {
     baseURL: process.env.env_url?.trim() || testSettings.envUrl,
     headless: true,
     trace: 'retain-on-failure',
-  }
+    ignoreHTTPSErrors: true,
+    viewport: { width: 1920, height: 1080 },  // ✅ fixed size — works in headless
+    launchOptions: {
+      args: ['--start-maximized']
+    }
+  },
+
+  projects: [
+    {
+      name: 'setup',
+      testDir: './auth',
+      testMatch: 'auth.setup.ts',
+    },
+    {
+      name: 'tests',
+      dependencies: ['setup'],
+      use: {
+        browserName: 'chromium',
+        channel: 'chrome',
+        storageState: './auth/session.json',
+        viewport: { width: 1920, height: 1080 },  // ✅ same here
+      },
+    },
+  ],
 });

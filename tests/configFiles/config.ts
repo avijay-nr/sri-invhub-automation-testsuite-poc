@@ -3,9 +3,9 @@ import { configSRITEST } from './config_SRI_TEST';
 
 export const testSettings = {
   testConfig: 'SRI_TEST',
-  envUrl: 'https://ih-sri-test.symphonyai.dev',
-  loginUrl: 'https://ih-sri-test.symphonyai.dev/login',
-  testUserEmail: 'sanchit.argade@symphonyai.com',
+  envUrl: 'https://ih-sri-dev.symphonyai.dev',
+  loginUrl: 'https://ih-sri-dev.symphonyai.dev/login',
+  testUserEmail: 'vinay.sm@symphonyai.com',  // TODO: fetch from GitHub Actions secrets later
   loginTestTimeoutMs: 180000,
   adminTestTimeoutMs: 180000,
   adminQueueRule: 'Round Robin',
