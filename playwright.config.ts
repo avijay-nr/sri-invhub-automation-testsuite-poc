@@ -15,7 +15,7 @@ export default defineConfig({
     headless: true,
     trace: 'retain-on-failure',
     ignoreHTTPSErrors: true,
-    viewport: { width: 1920, height: 1080 },  // ✅ fixed size — works in headless
+    viewport: null,
     launchOptions: {
       args: ['--start-maximized']
     }
@@ -34,7 +34,7 @@ export default defineConfig({
         browserName: 'chromium',
         channel: 'chrome',
         storageState: './auth/session.json',
-        viewport: { width: 1920, height: 1080 },  // ✅ same here
+        viewport: null,
       },
     },
   ],

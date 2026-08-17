@@ -17,8 +17,7 @@ function buildCaseName(): string {
   const explicitCaseName = process.env.CASE_NAME?.trim();
   if (explicitCaseName) return explicitCaseName;
 
-  const prefix = process.env.CASE_NAME_PREFIX?.trim() || 'QA_CASE_';
-  return `${prefix}${faker.string.alphanumeric(5).toUpperCase()}`;
+  return `QA_Case_${faker.word.noun()}_${faker.string.uuid().slice(0, 8)}`;
 }
 
 export class CaseDef {
@@ -481,6 +480,25 @@ export class CaseDef {
     await expect(caseResult).toBeVisible({ timeout: 30_000 });
   }
 
+  async waitForCaseSearchResult(caseName: string): Promise<void> {
+    const deadline = Date.now() + 60_000;
+    while (Date.now() < deadline) {
+      await this.searchCaseOnSearchPage(caseName);
+
+      const caseResult = this.page
+        .locator('table tbody tr, [role="row"], [data-testid*="case" i], a, button')
+        .filter({ hasText: new RegExp(caseName, 'i') })
+        .first();
+      if (await caseResult.isVisible({ timeout: 5_000 }).catch(() => false)) {
+        return;
+      }
+
+      await this.page.waitForTimeout(1_000);
+    }
+
+    await this.verifyCaseSearchResult(caseName);
+  }
+
   async openCaseDetailsFromSearch(caseName: string): Promise<void> {
     const caseResult = this.page
       .locator('table tbody tr, [role="row"], [data-testid*="case" i], a, button')
@@ -623,6 +641,76 @@ async verifyConnectedSubjectsDetails(): Promise<void> {
     .filter({ hasNotText: /no data found|no records|no results/i });
   await expect(subjectRows.first()).toBeVisible({ timeout: 30_000 });
 }
+
+  async removeFirstSubjectFromCase(): Promise<string | null> {
+    const subjectRows = this.page
+      .locator('table tbody tr, [role="rowgroup"] [role="row"]')
+      .filter({ hasNotText: /no data found|no records|no results/i });
+    const firstSubjectRow = subjectRows.first();
+    await expect(firstSubjectRow).toBeVisible({ timeout: 30_000 });
+
+    const subjectName = ((await firstSubjectRow.textContent()) || '').trim();
+    const removeButton = firstSubjectRow
+      .getByRole('button', { name: /remove|unlink|delete/i })
+      .or(firstSubjectRow.locator('[aria-label*="remove" i], [title*="remove" i], [data-testid*="remove" i]').first())
+      .first();
+    if (!(await removeButton.isVisible({ timeout: 5_000 }).catch(() => false))) {
+      return null;
+    }
+    await removeButton.click();
+    return subjectName;
+  }
+
+  async confirmSubjectRemoval(): Promise<void> {
+    const confirmation = this.page.getByRole('dialog').filter({ hasText: /remove|unlink|delete|confirm/i }).first();
+    const confirmButton = confirmation.getByRole('button', { name: /confirm|remove|unlink|delete|yes/i }).first();
+    await expect(confirmButton).toBeVisible({ timeout: 15_000 });
+    await confirmButton.click();
+  }
+
+  async verifySubjectRemoved(subjectName: string): Promise<void> {
+    await expect
+      .poll(
+        async () => !(await this.page.getByText(subjectName, { exact: false }).first().isVisible().catch(() => false)),
+        { timeout: 30_000 },
+      )
+      .toBe(true);
+  }
+
+  async clickCloseCase(): Promise<void> {
+    const closeButton = this.page
+      .getByRole('button', { name: /close case/i })
+      .or(this.page.locator('[aria-label*="close case" i], [title*="close case" i], [data-testid*="close-case" i]').first())
+      .first();
+    await expect(closeButton).toBeVisible({ timeout: 30_000 });
+    await closeButton.click();
+  }
+
+  async enterClosureNotes(): Promise<void> {
+    const closeDialog = this.page.getByRole('dialog').filter({ hasText: /close case|closure/i }).first();
+    await expect(closeDialog).toBeVisible({ timeout: 30_000 });
+
+    const notesField = closeDialog
+      .getByLabel(/closure notes|notes|reason/i)
+      .or(closeDialog.getByPlaceholder(/closure notes|notes|reason/i))
+      .or(closeDialog.locator('textarea, input[type="text"]').first())
+      .first();
+    await expect(notesField).toBeVisible({ timeout: 15_000 });
+    await notesField.fill('Case resolved and ready to close.');
+  }
+
+  async confirmCloseCase(): Promise<void> {
+    const closeDialog = this.page.getByRole('dialog').filter({ hasText: /close case|closure/i }).first();
+    const confirmButton = closeDialog.getByRole('button', { name: /close|confirm|submit|save/i }).last();
+    await expect(confirmButton).toBeVisible({ timeout: 15_000 });
+    await confirmButton.click();
+  }
+
+  async verifyCaseClosed(): Promise<void> {
+    const closedStatus = this.page.getByText(/^closed$/i).first();
+    const closedMessage = this.page.getByText(/case.*closed|closed.*case/i).first();
+    await expect(closedStatus.or(closedMessage).first()).toBeVisible({ timeout: 30_000 });
+  }
 
 
   async verifyCasePresentInSearchResults(caseName: string): Promise<void> {

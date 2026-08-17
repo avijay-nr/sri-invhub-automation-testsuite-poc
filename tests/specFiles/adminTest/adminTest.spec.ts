@@ -48,7 +48,7 @@ test(`View Users List (Admin) - ${appConfig.envName} @admin_TC0001`, async ({ pa
 });
 
 // TC-ADMIN-002: Create Team
-test(`TC-ADMIN-002: Create Team (Admin) - ${appConfig.envName} @admin_TC0002`, async ({ page }) => {
+test(`Create Team (Admin) - ${appConfig.envName} @admin_TC0002`, async ({ page }) => {
   const loginDef = new LoginDef(page);
   const adminTeamsDef = new AdminTeamsDef(page);
   await test.step('Login as admin user', async () => {
@@ -85,7 +85,7 @@ test(`TC-ADMIN-002: Create Team (Admin) - ${appConfig.envName} @admin_TC0002`, a
 });
 
 // TC-ADMIN-003: Configure Queue
-test(`TC-ADMIN-003: Configure Queue (Admin) - ${appConfig.envName} @admin_TC0003`, async ({ page }) => {
+test(`Configure Queue (Admin) - ${appConfig.envName} @admin_TC0003`, async ({ page }) => {
   const { loginDef, adminQueuesDef } = createAdminQueuesDefs(page);
   await test.step('Login as admin user', async () => {
     await loginDef.loginIfNeeded();
@@ -95,7 +95,7 @@ test(`TC-ADMIN-003: Configure Queue (Admin) - ${appConfig.envName} @admin_TC0003
     await adminQueuesDef.openQueuesManagement();
   });
   await test.step('Open queue form', async () => {
-    await adminQueuesDef.openCreateOrEditQueueForm();
+    await adminQueuesDef.openCreateQueueForm();
   });
   await test.step('Enter queue name', async () => {
     await adminQueuesDef.enterQueueName();
@@ -115,7 +115,7 @@ test(`TC-ADMIN-003: Configure Queue (Admin) - ${appConfig.envName} @admin_TC0003
 });
 
 // TC-ADMIN-004: View Workflow Configuration
-test(`TC-ADMIN-004: View Workflow Configuration (Admin) - ${appConfig.envName} @admin_TC0004`, async ({ page }) => {
+test(`View Workflow Configuration (Admin) - ${appConfig.envName} @admin_TC0004`, async ({ page }) => {
   const loginDef = new LoginDef(page);
   const adminWorkflowsDef = new AdminWorkflowsDef(page);
   await test.step('Login as admin user', async () => {
@@ -137,7 +137,7 @@ test(`TC-ADMIN-004: View Workflow Configuration (Admin) - ${appConfig.envName} @
 });
 
 // TC-ADMIN-005: Create Tag
-test(`TC-ADMIN-005: Create Tag (Admin) - ${appConfig.envName} @admin_TC0005`, async ({ page }) => {
+test(`Create Tag (Admin) - ${appConfig.envName} @admin_TC0005`, async ({ page }) => {
   const loginDef = new LoginDef(page);
   const adminTagsDef = new AdminTagsDef(page);
   await test.step('Login as admin user', async () => {
@@ -168,7 +168,7 @@ test(`TC-ADMIN-005: Create Tag (Admin) - ${appConfig.envName} @admin_TC0005`, as
 });
 
 // TC-ADMIN-006: System Configuration View
-test(`TC-ADMIN-006: System Configuration View (Admin) - ${appConfig.envName} @admin_TC0006`, async ({ page }) => {
+test(`System Configuration View (Admin) - ${appConfig.envName} @admin_TC0006`, async ({ page }) => {
   const { loginDef, adminConfigDef } = createAdminConfigDefs(page);
   await test.step('Login as admin user', async () => {
     await loginDef.loginIfNeeded();
@@ -186,7 +186,7 @@ test(`TC-ADMIN-006: System Configuration View (Admin) - ${appConfig.envName} @ad
 });
 
 // TC-ADMIN-007: View and Edit Roles
-test(`TC-ADMIN-007: View and Edit Roles (Admin) - ${appConfig.envName} @admin_TC0007`, async ({ page }) => {
+test(`View and Edit Roles (Admin) - ${appConfig.envName} @admin_TC0007`, async ({ page }) => {
   const { loginDef, adminRolesDef } = createAdminRolesDefs(page);
   await test.step('Login as admin user', async () => {
     await loginDef.loginIfNeeded();
@@ -204,4 +204,4 @@ test(`TC-ADMIN-007: View and Edit Roles (Admin) - ${appConfig.envName} @admin_TC
   await test.step('Verify permission controls are visible', async () => {
     await adminRolesDef.verifyPermissionsVisible();
   });
-});
+});  

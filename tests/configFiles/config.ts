@@ -5,7 +5,7 @@ export const testSettings = {
   testConfig: 'SRI_TEST',
   envUrl: 'https://ih-sri-dev.symphonyai.dev',
   loginUrl: 'https://ih-sri-dev.symphonyai.dev/login',
-  testUserEmail: 'vinay.sm@symphonyai.com',  // TODO: fetch from GitHub Actions secrets later
+  testUserEmail: 'sanchit.argade@symphonyai.com',  // vinay >> sanchit
   loginTestTimeoutMs: 180000,
   adminTestTimeoutMs: 180000,
   adminQueueRule: 'Round Robin',
