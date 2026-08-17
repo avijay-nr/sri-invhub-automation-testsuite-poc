@@ -1,11 +1,14 @@
 import { configINVHUBQA, type AppConfig } from './config_INVHUB_QA';
 import { configSRITEST } from './config_SRI_TEST';
+import { getBaseUrl } from './enviroment_urls';                          // ← NEW IMPORT
+
+const baseUrl = getBaseUrl();                                     // ← CALL ONCE ✅
 
 export const testSettings = {
   testConfig: 'SRI_TEST',
-  envUrl: 'https://ih-sri-dev.symphonyai.dev',
-  loginUrl: 'https://ih-sri-dev.symphonyai.dev/login',
-  testUserEmail: 'sanchit.argade@symphonyai.com',  // vinay >> sanchit
+  envUrl: baseUrl,                                                // ← FROM ENV
+  loginUrl: `${baseUrl}/login`,                                   // ← FROM ENV
+  testUserEmail: process.env.TEST_USER_EMAIL?.trim() || '',       // ← FROM ENV
   loginTestTimeoutMs: 180000,
   adminTestTimeoutMs: 180000,
   adminQueueRule: 'Round Robin',

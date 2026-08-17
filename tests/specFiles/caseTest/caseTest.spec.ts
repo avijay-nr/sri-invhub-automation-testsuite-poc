@@ -15,7 +15,7 @@ function getSharedCaseName(): string {
 }
 
 // TC-CASE-001
-test(`Create New Case - ${appConfig.envName} @case_TC0001`, async ({ page }) => {
+test(`Create New Case - ${appConfig.envName} @case @smoke @regression @case_TC0001`, async ({ page }) => {
   const { loginDef, caseDef } = createCaseDefs(page);
   await test.step('Login as valid user', async () => {
     await loginDef.loginIfNeeded();
@@ -51,9 +51,9 @@ test(`Create New Case - ${appConfig.envName} @case_TC0001`, async ({ page }) => 
 });
 
 // TC-CASE-002
-test(`Verify Recently Created Case In Search - ${appConfig.envName} @case_TC0002`, async ({ page }) => {
+test(`Verify Recently Created Case In Search - ${appConfig.envName} @case @regression @case_TC0002`, async ({ page }) => {
   const { loginDef, caseDef } = createCaseDefs(page);
-  const targetCaseName = getSharedCaseName(); // ✅ reads from TC-CASE-001
+  const targetCaseName = getSharedCaseName();
   await test.step('Login as valid user', async () => {
     await loginDef.loginIfNeeded();
   });
@@ -69,7 +69,7 @@ test(`Verify Recently Created Case In Search - ${appConfig.envName} @case_TC0002
 });
 
 // TC-CASE-003
-test(`View Case Details - ${appConfig.envName} @case_TC0003`, async ({ page }) => {
+test(`View Case Details - ${appConfig.envName} @case @smoke @regression @case_TC0003`, async ({ page }) => {
   const { loginDef, caseDef } = createCaseDefs(page);
   const targetCaseName = getSharedCaseName();
   await test.step('Login as valid user', async () => {
@@ -99,7 +99,7 @@ test(`View Case Details - ${appConfig.envName} @case_TC0003`, async ({ page }) =
 });
 
 // TC-CASE-004
-test(`Remove Subject from Case - ${appConfig.envName} @case_TC0004`, async ({ page }) => {
+test(`Remove Subject from Case - ${appConfig.envName} @case @regression @case_TC0004`, async ({ page }) => {
   const { loginDef, caseDef } = createCaseDefs(page);
   const targetCaseName = getSharedCaseName();
   await test.step('Login as valid user', async () => {
@@ -123,7 +123,7 @@ test(`Remove Subject from Case - ${appConfig.envName} @case_TC0004`, async ({ pa
 });
 
 // TC-CASE-005
-test(`Close Case - ${appConfig.envName} @case_TC0005`, async ({ page }) => {
+test(`Close Case - ${appConfig.envName} @case @smoke @regression @case_TC0005`, async ({ page }) => {
   const { loginDef, caseDef } = createCaseDefs(page);
   const targetCaseName = getSharedCaseName();
   await test.step('Login as valid user', async () => {

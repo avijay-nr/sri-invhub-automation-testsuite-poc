@@ -1,0 +1,134 @@
+name: SRI - Investigation Hub Test Flows
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Select Environment'
+        required: true
+        default: 'QA-Test'
+        type: choice
+        options:
+          - QA-Dev
+          - QA-Test
+          - Custom
+
+      custom_env_url:
+        description: 'Custom Env URL (only if environment = Custom)'
+        required: false
+        default: ''
+        type: string
+
+      email:
+        description: 'Enter Login Email'
+        required: true
+        default: ''
+        type: string
+
+      tags:
+        description: 'Enter test tag to filter (e.g. @smoke, @regression, @admin, @case_TC0001). Leave empty to run all.'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Health check - verify environment is reachable
+        run: |
+          if [ "$TEST_ENV" = "Custom" ]; then
+            ENV_URL="$CUSTOM_ENV_URL"
+          elif [ "$TEST_ENV" = "QA-Dev" ]; then
+            ENV_URL="https://ih-sri-dev.symphonyai.dev"
+          else
+            ENV_URL="https://ih-sri-test.symphonyai.dev"
+          fi
+
+          if [ -z "$ENV_URL" ]; then
+            echo "❌ No URL found for environment: $TEST_ENV"
+            exit 1
+          fi
+
+          echo "🔍 Health check: $ENV_URL"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$ENV_URL" --max-time 15)
+
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+            echo "✅ Environment is UP (HTTP $STATUS)"
+          else
+            echo "❌ Environment is DOWN or unreachable (HTTP $STATUS)"
+            exit 1
+          fi
+        env:
+          TEST_ENV: ${{ github.event.inputs.environment }}
+          CUSTOM_ENV_URL: ${{ github.event.inputs.custom_env_url }}
+
+      - name: Run IH tests
+        run: |
+          if [ -n "$TAGS" ]; then
+            npx playwright test --grep "$TAGS" --retries=2 --reporter=html,json
+          else
+            npx playwright test --retries=2 --reporter=html,json
+          fi
+        env:
+          TEST_USER_EMAIL: ${{ github.event.inputs.email }}
+          TEST_ENV: ${{ github.event.inputs.environment }}
+          CUSTOM_ENV_URL: ${{ github.event.inputs.custom_env_url }}
+          TAGS: ${{ github.event.inputs.tags }}
+          PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-report/results.json
+
+      - name: Flaky test report
+        if: always()
+        run: |
+          echo "## 🧪 SRI - IH Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Input | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌍 Environment | $TEST_ENV |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📧 Email | $TEST_USER_EMAIL |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏷️ Tags | ${TAGS:-all tests} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f playwright-report/results.json ]; then
+            PASSED=$(jq '.stats.expected // 0' playwright-report/results.json)
+            FAILED=$(jq '.stats.unexpected // 0' playwright-report/results.json)
+            FLAKY=$(jq '.stats.flaky // 0' playwright-report/results.json)
+            SKIPPED=$(jq '.stats.skipped // 0' playwright-report/results.json)
+            TOTAL=$(jq '.stats.total // 0' playwright-report/results.json)
+
+            echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| ✅ Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
+            echo "| ❌ Failed | $FAILED |" >> $GITHUB_STEP_SUMMARY
+            echo "| ⚠️ Flaky (passed on retry) | $FLAKY |" >> $GITHUB_STEP_SUMMARY
+            echo "| ⏭️ Skipped | $SKIPPED |" >> $GITHUB_STEP_SUMMARY
+            echo "| 📊 Total | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No results.json found — report may not have generated." >> $GITHUB_STEP_SUMMARY
+          fi
+        env:
+          TEST_ENV: ${{ github.event.inputs.environment }}
+          TEST_USER_EMAIL: ${{ github.event.inputs.email }}
+          TAGS: ${{ github.event.inputs.tags }}
+
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: ih-test-report
+          path: playwright-report/
