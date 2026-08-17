@@ -101,22 +101,19 @@ function getMinimumSectionMatches(expectedCount: number): number {
 function buildQueueName(): string {
   const explicitQueueName = process.env.ADMIN_QUEUE_NAME?.trim();
   if (explicitQueueName) return explicitQueueName;
-  const prefix = process.env.ADMIN_QUEUE_NAME_PREFIX?.trim() || testSettings.adminQueueNamePrefix;
-  return `${prefix}-${faker.word.noun()}-${faker.number.int({ min: 100, max: 999 })}`;
+  return `QA_Queue_${faker.word.noun()}_${faker.string.uuid().slice(0, 8)}`;
 }
 
 function buildTagName(): string {
   const explicitName = process.env.ADMIN_TAG_NAME?.trim();
   if (explicitName) return explicitName;
-  const prefix = process.env.ADMIN_TAG_NAME_PREFIX?.trim() || testSettings.adminTagNamePrefix;
-  return `${prefix}-${faker.word.adjective()}-${faker.number.int({ min: 100, max: 999 })}`;
+  return `QA_Tag_${faker.word.adjective()}_${faker.string.uuid().slice(0, 8)}`;
 }
 
 function buildTeamName(): string {
   const explicitName = process.env.ADMIN_TEAM_NAME?.trim();
   if (explicitName) return explicitName;
-  const prefix = process.env.ADMIN_TEAM_NAME_PREFIX?.trim() || testSettings.adminTeamNamePrefix;
-  return `${prefix}-${faker.company.name()}-${faker.number.int({ min: 1, max: 99 })}`;
+  return `QA_TEAM_${faker.word.noun()}_${faker.string.uuid().slice(0, 8)}`;
 }
 
 function getMembersFromEnv(): string[] {
@@ -287,6 +284,7 @@ export class AdminConfigDef {
 
 export class AdminQueuesDef {
   private readonly queueName: string = buildQueueName();
+  private queueCreateConfirmed = false;
 
   constructor(private readonly page: Page) {}
 
@@ -301,75 +299,35 @@ export class AdminQueuesDef {
   }
 
   async openQueuesManagement(): Promise<void> {
-    const queuesLink = this.page.locator(appConfig.selectors.queuesManagement).first();
+    const queuesLink = this.page
+      .getByRole('menuitem', { name: /^queues management$/i })
+      .or(this.page.getByRole('link', { name: /^queues management$/i }))
+      .or(this.page.getByRole('button', { name: /^queues management$/i }))
+      .or(this.page.locator(appConfig.selectors.queuesManagement))
+      .first();
     await expect(queuesLink).toBeVisible({ timeout: 30_000 });
     await queuesLink.click();
-    await expect(this.page).toHaveURL(/admin|queue/i, { timeout: 30_000 });
+    await expect(this.page.locator('main').getByText(/^queues management$/i).first()).toBeVisible({ timeout: 30_000 });
   }
 
-  async openCreateOrEditQueueForm(): Promise<void> {
-    if (await this.hasQueueFormContext()) {
-      return;
-    }
+  async openCreateQueueForm(): Promise<void> {
+    const createQueueButton = this.page
+      .getByRole('button', { name: /^create queue$/i })
+      .or(this.page.getByRole('button', { name: /^new queue$/i }))
+      .or(this.page.locator(appConfig.selectors.createQueueButton))
+      .first();
 
-    // Wait for page to settle before looking for form
-    await this.page.waitForTimeout(500);
-
-    // Try by role - most reliable method
-    const createQueueByRole = this.page.getByRole('button', { name: /create queue|new queue/i });
-    const roleVisible = await createQueueByRole.first().isVisible({ timeout: 5_000 }).catch(() => false);
-    if (roleVisible) {
-      await createQueueByRole.first().click().catch(() => {});
-      await this.page.waitForTimeout(1000);
-      if (await this.hasQueueFormContext()) return;
-      if (await this.waitForQueueFormContext(15_000)) return;
-    }
-
-    // Try by custom selector
-    const createQueueBySelector = this.page.locator(appConfig.selectors.createQueueButton);
-    const selectorVisible = await createQueueBySelector.first().isVisible({ timeout: 5_000 }).catch(() => false);
-    if (selectorVisible) {
-      await createQueueBySelector.first().click().catch(() => {});
-      await this.page.waitForTimeout(1000);
-      if (await this.hasQueueFormContext()) return;
-      if (await this.waitForQueueFormContext(15_000)) return;
-    }
-
-    // Try edit button on first queue
-    const editByRole = this.page.getByRole('button', { name: /^edit$/i });
-    const editRoleVisible = await editByRole.first().isVisible({ timeout: 5_000 }).catch(() => false);
-    if (editRoleVisible) {
-      await editByRole.first().click({ force: true }).catch(() => {});
-      await this.page.waitForTimeout(1000);
-      if (await this.hasQueueFormContext()) return;
-      if (await this.waitForQueueFormContext(15_000)) return;
-    }
-
-    // Try by custom edit selector
-    const editBySelector = this.page.locator(appConfig.selectors.editQueueButton);
-    const editSelectorVisible = await editBySelector.first().isVisible({ timeout: 5_000 }).catch(() => false);
-    if (editSelectorVisible) {
-      await editBySelector.first().click({ force: true }).catch(() => {});
-      await this.page.waitForTimeout(1000);
-      if (await this.hasQueueFormContext()) return;
-      if (await this.waitForQueueFormContext(15_000)) return;
-    }
-
-    // Try clicking first queue link
-    const firstQueueLink = this.page.locator(appConfig.selectors.queueFirstRowLink);
-    const queueLinkVisible = await firstQueueLink.first().isVisible({ timeout: 5_000 }).catch(() => false);
-    if (queueLinkVisible) {
-      await firstQueueLink.first().click().catch(() => {});
-      await this.page.waitForTimeout(1000);
-      if (await this.hasQueueFormContext()) return;
-    }
-
-    throw new Error('Unable to open queue form with editable name field from current queue page state.');
+    await expect(createQueueButton).toBeVisible({ timeout: 30_000 });
+    await createQueueButton.click();
+    await expect(this.page.getByLabel(/\*?name|queue name/i).first()
+      .or(this.page.getByPlaceholder(/enter name|queue name/i).first())
+      .or(this.page.locator(appConfig.selectors.queueNameInput).first()))
+      .toBeVisible({ timeout: 30_000 });
   }
 
   async enterQueueName(): Promise<void> {
     if (!(await this.hasEditableQueueNameField())) {
-      await this.openCreateOrEditQueueForm();
+      await this.openCreateQueueForm();
     }
 
     const queueNameByLabel = this.page.getByLabel(/\*?name/i).first();
@@ -416,74 +374,43 @@ export class AdminQueuesDef {
     if (await queueDialog.isVisible().catch(() => false)) {
       const dialogSave = queueDialog.getByRole('button', { name: /save|update|create/i }).last();
       await expect(dialogSave).toBeVisible({ timeout: 30_000 });
-      await dialogSave.click();
+      this.queueCreateConfirmed = await this.clickAndConfirmQueueCreation(dialogSave);
       return;
     }
 
-    const saveByRole = this.page.getByRole('button', { name: /save|update|create/i }).first();
-    const saveButton = this.page.locator(appConfig.selectors.saveQueueButton).first();
+    const queueForm = this.page.locator(appConfig.selectors.queueFormContainer).first();
+    await expect(queueForm).toBeVisible({ timeout: 30_000 });
+    const saveByRole = queueForm.getByRole('button', { name: /save|create/i }).first();
     if (await saveByRole.isVisible().catch(() => false)) {
-      await saveByRole.click();
+      this.queueCreateConfirmed = await this.clickAndConfirmQueueCreation(saveByRole);
       return;
     }
 
+    const saveButton = queueForm.locator(appConfig.selectors.saveQueueButton).first();
     await expect(saveButton).toBeVisible({ timeout: 30_000 });
-    await saveButton.click();
+    this.queueCreateConfirmed = await this.clickAndConfirmQueueCreation(saveButton);
   }
 
   async verifyQueueCreatedOrUpdatedSuccessfully(): Promise<void> {
-    // Wait for any potential success toast or page update
-    await this.page.waitForTimeout(2000);
-
-    // First check for success toast
-    const successToast = this.page.locator(appConfig.selectors.queueSuccessToast).first();
-    const toastVisible = await successToast.isVisible({ timeout: 10_000 }).catch(() => false);
-    if (toastVisible) return;
-
-    // Check if form dialog is still open
-    const formDialog = this.page.getByRole('dialog').filter({ hasText: /queue/i }).first();
-    const formVisible = await formDialog.isVisible().catch(() => false);
-    
-    if (formVisible) {
-      // Form is still open, wait for it to close
-      await this.page.waitForFunction(
-        () => !document.querySelector('[role="dialog"]'),
-        { timeout: 15_000 }
-      ).catch(() => {});
-      await this.page.waitForTimeout(1000);
-    } else {
-      // Form is closed, good sign
-      await this.page.waitForTimeout(1000);
+    if (this.queueCreateConfirmed) {
+      return;
     }
+    await this.verifyQueueVisible(this.queueName);
+  }
 
-    // Try to find queue name in current page first
-    let queueNameText = this.page.getByText(new RegExp(this.queueName.split(' ')[0], 'i')).first();
-    let queueFound = await queueNameText.isVisible({ timeout: 5_000 }).catch(() => false);
-    if (queueFound) return;
+  async verifyQueueVisible(queueName: string): Promise<void> {
+    await this.navigateToAdminSection();
+    await this.openQueuesManagement();
 
-    // If not found, reload the queues list by clicking queues link
-    const queuesLink = this.page.locator(appConfig.selectors.queuesManagement).first();
-    if (await queuesLink.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await queuesLink.click();
-      await this.page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
-      await this.page.waitForTimeout(2000);
-    }
-
-    // Search in table rows for queue name
-    const tableRows = this.page.locator('table tbody tr');
-    const rowCount = await tableRows.count();
-    
-    for (let i = 0; i < Math.min(rowCount, 10); i++) {
-      const row = tableRows.nth(i);
-      const rowText = (await row.textContent().catch(() => '')) ?? '';
-      if (rowText.includes(this.queueName) || rowText.includes(this.queueName.split('-')[0])) {
-        return; // Queue found in table
+    const deadline = Date.now() + 60_000;
+    while (Date.now() < deadline) {
+      if (await this.findQueueAcrossPagination(queueName)) {
+        return;
       }
+      await this.page.waitForTimeout(1_000);
     }
 
-    // Final attempt - wait for the queue name with longer timeout
-    queueNameText = this.page.getByText(this.queueName, { exact: false }).first();
-    await expect(queueNameText).toBeVisible({ timeout: 15_000 });
+    await expect(this.page.getByText(queueName, { exact: true }).first()).toBeVisible({ timeout: 1_000 });
   }
 
   async fillQueueDescription(): Promise<void> {
@@ -501,6 +428,58 @@ export class AdminQueuesDef {
       description = faker.lorem.sentence();
     }
     await descriptionField.fill(description);
+  }
+
+  private async clickAndConfirmQueueCreation(actionButton: Locator): Promise<boolean> {
+    const responsePromise = this.page.waitForResponse(
+      async (response) => {
+        if (!response.url().includes('/graphql') || response.request().method() !== 'POST') {
+          return false;
+        }
+
+        try {
+          if (!response.request().postData()?.includes(this.queueName)) {
+            return false;
+          }
+
+          const responseBody = await response.text();
+          return response.ok() && !responseBody.includes('"errors"');
+        } catch {
+          return false;
+        }
+      },
+      { timeout: 20_000 },
+    ).catch(() => null);
+
+    await actionButton.click();
+    return Boolean(await responsePromise);
+  }
+
+  private async findQueueAcrossPagination(queueName: string): Promise<boolean> {
+    const queueInList = this.page.getByText(queueName, { exact: true }).first();
+    if (await queueInList.isVisible().catch(() => false)) {
+      return true;
+    }
+
+    const pageButtons = this.page.locator('button[testid="page-links"][aria-label^="Page "]');
+    const labels = (await pageButtons.allTextContents())
+      .map((label) => label.trim())
+      .filter((label) => /^\d+$/.test(label));
+
+    for (const pageLabel of Array.from(new Set(labels))) {
+      const pageButton = this.page.locator(`button[testid="page-links"][aria-label="Page ${pageLabel}"]`).first();
+      if (await pageButton.getAttribute('aria-current').catch(() => null)) {
+        continue;
+      }
+
+      await pageButton.click();
+      await this.page.waitForTimeout(300);
+      if (await queueInList.isVisible().catch(() => false)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   private async hasEditableQueueNameField(): Promise<boolean> {
