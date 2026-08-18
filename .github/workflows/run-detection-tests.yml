@@ -61,6 +61,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Restore cached session
+        uses: actions/cache@v4
+        with:
+          path: ./auth/session-*.json
+          key: auth-session-${{ github.event.inputs.email }}-${{ github.event.inputs.environment }}-${{ github.run_id }}
+          restore-keys: |
+            auth-session-${{ github.event.inputs.email }}-${{ github.event.inputs.environment }}-
+
       - name: Install system tools
         run: |
           curl -sL https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64 -o /usr/local/bin/jq
@@ -116,16 +124,6 @@ jobs:
           echo "✅ OTP Flow URL found for $EMAIL"
           echo "RESOLVED_OTP_URL=$OTP_URL" >> $GITHUB_ENV
 
-      - name: Warm up OTP flow
-        run: |
-          echo "🔥 Warming up Power Automate flow for: ${{ github.event.inputs.email }}"
-          curl -s -X POST "${{ env.RESOLVED_OTP_URL }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"email\": \"${{ github.event.inputs.email }}\"}" \
-            --max-time 60 || true
-          echo "✅ Flow is warm — waiting 10s before tests start..."
-          sleep 10
-
       - name: Resolve test tag
         run: |
           if [ "$TAG_SELECT" = "custom" ]; then
@@ -159,6 +157,13 @@ jobs:
           PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-report/results.json
           OTP_FETCH_CMD: 'curl -s -X POST "${{ env.RESOLVED_OTP_URL }}" -H "Content-Type: application/json" -d "{\"email\": \"${{ github.event.inputs.email }}\"}"'
           OTP_REGEX: '\d{6}'
+
+      - name: Save session cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ./auth/session-*.json
+          key: auth-session-${{ github.event.inputs.email }}-${{ github.event.inputs.environment }}-${{ github.run_id }}
 
       - name: Flaky test report
         if: always()
