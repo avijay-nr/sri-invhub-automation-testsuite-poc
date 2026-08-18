@@ -11,7 +11,7 @@ test.afterEach(async ({ page }) => {
 
 // TC-AUTH-001: Valid Login with SSO
 // ✅ INTENTIONAL OTP — this test IS testing the login flow
-test(`Valid Login with SSO - ${appConfig.envName} @auth_TC0001`, async ({ page }) => {
+test(`Valid Login with SSO - ${appConfig.envName} @auth @smoke @regression @auth_TC0001`, async ({ page }) => {
   const authLoginDef = new AuthLoginDef(page);
   await test.step('Step 1: Navigate to application URL', async () => {
     await authLoginDef.openLoginPage();
@@ -42,7 +42,7 @@ test(`Valid Login with SSO - ${appConfig.envName} @auth_TC0001`, async ({ page }
 
 // TC-AUTH-002: Invalid Login - Wrong OTP
 // ✅ INTENTIONAL OTP — this test IS testing wrong OTP behavior
-test(`Invalid Login - Wrong OTP - ${appConfig.envName} @auth_TC0002`, async ({ page }) => {
+test(`Invalid Login - Wrong OTP - ${appConfig.envName} @auth @regression @auth_TC0002`, async ({ page }) => {
   const authLoginDef = new AuthLoginDef(page);
   await test.step('Step 1: Navigate to login page', async () => {
     await authLoginDef.openLoginPage();
@@ -65,7 +65,7 @@ test(`Invalid Login - Wrong OTP - ${appConfig.envName} @auth_TC0002`, async ({ p
 
 // TC-AUTH-003: Session Timeout
 // ✅ Uses loginIfNeeded() — no OTP needed, just needs to be logged in
-test(`Session Timeout - ${appConfig.envName} @auth_TC0003`, async ({ page }) => {
+test(`Session Timeout - ${appConfig.envName} @auth @regression @auth_TC0003`, async ({ page }) => {
   const loginDef = new LoginDef(page);
   const authLoginDef = new AuthLoginDef(page);
   await test.step('Step 1: Login and verify session is active', async () => {
@@ -95,7 +95,7 @@ test(`Session Timeout - ${appConfig.envName} @auth_TC0003`, async ({ page }) => 
 test.describe('TC-AUTH-004 - isolated logout context', () => {
   test.use({ storageState: { cookies: [], origins: [] } }); // ← fresh context, no shared session
 
-  test(`Logout - ${appConfig.envName} @auth_TC0004`, async ({ page }) => {
+  test(`Logout - ${appConfig.envName} @auth @smoke @regression @auth_TC0004`, async ({ page }) => {
     const loginDef = new LoginDef(page);
     const authLoginDef = new AuthLoginDef(page);
     await test.step('Step 1: Login and verify logged in', async () => {
@@ -119,7 +119,7 @@ test.describe('TC-AUTH-004 - isolated logout context', () => {
 
 // TC-AUTH-005: Role-Based Access Control
 // ✅ Uses loginIfNeeded() — no OTP needed, just needs to be logged in
-test(`Role-Based Access Control - Verify Admin Access - ${appConfig.envName} @auth_TC0005`, async ({ page }) => {
+test(`Role-Based Access Control - Verify Admin Access - ${appConfig.envName} @auth @smoke @regression @auth_TC0005`, async ({ page }) => {
   const loginDef = new LoginDef(page);
   const authLoginDef = new AuthLoginDef(page);
   await test.step('Step 1: Login as user with Admin role', async () => {

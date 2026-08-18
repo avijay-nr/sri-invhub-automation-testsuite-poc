@@ -9,7 +9,7 @@ test.afterEach(async ({ page }) => {
 });
 
 // ✅ This test IS testing the login flow — OTP steps are intentional
-test(`Simple Login Smoke Test - ${appConfig.envName} @login_TC0001`, async ({ page }) => {
+test(`Simple Login Smoke Test - ${appConfig.envName} @login @smoke @regression @login_TC0001`, async ({ page }) => {
   const loginDef = new LoginDef(page);
   await test.step('Open login page', async () => {
     await loginDef.openLoginPage();
