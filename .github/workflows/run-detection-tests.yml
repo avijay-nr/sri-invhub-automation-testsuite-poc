@@ -116,6 +116,16 @@ jobs:
           echo "✅ OTP Flow URL found for $EMAIL"
           echo "RESOLVED_OTP_URL=$OTP_URL" >> $GITHUB_ENV
 
+      - name: Warm up OTP flow
+        run: |
+          echo "🔥 Warming up Power Automate flow for: ${{ github.event.inputs.email }}"
+          curl -s -X POST "${{ env.RESOLVED_OTP_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\": \"${{ github.event.inputs.email }}\"}" \
+            --max-time 60 || true
+          echo "✅ Flow is warm — waiting 10s before tests start..."
+          sleep 10
+
       - name: Resolve test tag
         run: |
           if [ "$TAG_SELECT" = "custom" ]; then
