@@ -6,7 +6,7 @@ on:
       environment:
         description: 'Select Environment'
         required: true
-        default: 'QA-Test'
+        default: 'QA-Dev'
         type: choice
         options:
           - QA-Dev
@@ -26,7 +26,18 @@ on:
         type: string
 
       tags:
-        description: 'Enter test tag to filter (e.g. @smoke, @regression, @admin, @case_TC0001). Leave empty to run all.'
+        description: 'Select test tag'
+        required: true
+        default: '@smoke'
+        type: choice
+        options:
+          - '@smoke'
+          - '@regression'
+          - '@admin'
+          - 'custom'
+
+      custom_tag:
+        description: 'Custom tag (only if tags = custom). e.g. @admin_TC0001'
         required: false
         default: ''
         type: string
@@ -78,6 +89,45 @@ jobs:
           TEST_ENV: ${{ github.event.inputs.environment }}
           CUSTOM_ENV_URL: ${{ github.event.inputs.custom_env_url }}
 
+      - name: Resolve OTP Flow URL for user
+        run: |
+          EMAIL="${{ github.event.inputs.email }}"
+          echo "🔍 Looking up OTP Flow URL for: $EMAIL"
+
+          OTP_URL=$(echo '${{ secrets.OTP_FLOW_MAP }}' | jq -r --arg email "$EMAIL" '.[$email] // empty')
+
+          if [ -z "$OTP_URL" ]; then
+            echo "❌ ERROR: No OTP Flow URL found for email: $EMAIL"
+            echo "💡 Please add your email and Power Automate URL to the OTP_FLOW_MAP secret."
+            echo ""
+            echo "📋 How to fix:"
+            echo "   1. Go to GitHub → Settings → Secrets → OTP_FLOW_MAP"
+            echo "   2. Add your entry: \"$EMAIL\":\"your-power-automate-url\""
+            echo "   3. Re-run this workflow"
+            exit 1
+          fi
+
+          echo "✅ OTP Flow URL found for $EMAIL"
+          echo "RESOLVED_OTP_URL=$OTP_URL" >> $GITHUB_ENV
+
+      - name: Resolve test tag
+        run: |
+          if [ "$TAG_SELECT" = "custom" ]; then
+            if [ -z "$CUSTOM_TAG" ]; then
+              echo "❌ ERROR: 'custom' selected but no custom tag provided!"
+              echo "💡 Please enter a value in the 'Custom tag' input field."
+              exit 1
+            fi
+            echo "RESOLVED_TAG=$CUSTOM_TAG" >> $GITHUB_ENV
+            echo "✅ Using custom tag: $CUSTOM_TAG"
+          else
+            echo "RESOLVED_TAG=$TAG_SELECT" >> $GITHUB_ENV
+            echo "✅ Using tag: $TAG_SELECT"
+          fi
+        env:
+          TAG_SELECT: ${{ github.event.inputs.tags }}
+          CUSTOM_TAG: ${{ github.event.inputs.custom_tag }}
+
       - name: Run IH tests
         run: |
           if [ -n "$TAGS" ]; then
@@ -89,9 +139,9 @@ jobs:
           TEST_USER_EMAIL: ${{ github.event.inputs.email }}
           TEST_ENV: ${{ github.event.inputs.environment }}
           CUSTOM_ENV_URL: ${{ github.event.inputs.custom_env_url }}
-          TAGS: ${{ github.event.inputs.tags }}
+          TAGS: ${{ env.RESOLVED_TAG }}
           PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-report/results.json
-          OTP_FETCH_CMD: 'curl -s -X POST "${{ secrets.OTP_FLOW_URL }}" -H "Content-Type: application/json" -d "{\"email\": \"${{ github.event.inputs.email }}\"}"'
+          OTP_FETCH_CMD: 'curl -s -X POST "${{ env.RESOLVED_OTP_URL }}" -H "Content-Type: application/json" -d "{\"email\": \"${{ github.event.inputs.email }}\"}"'
           OTP_REGEX: '\d{6}'
 
       - name: Flaky test report
@@ -126,7 +176,7 @@ jobs:
         env:
           TEST_ENV: ${{ github.event.inputs.environment }}
           TEST_USER_EMAIL: ${{ github.event.inputs.email }}
-          TAGS: ${{ github.event.inputs.tags }}
+          TAGS: ${{ env.RESOLVED_TAG }}
 
       - name: Upload HTML report
         uses: actions/upload-artifact@v4
