@@ -62,7 +62,10 @@ jobs:
         run: npm ci
 
       - name: Install system tools
-        run: apt-get update && apt-get install -y jq curl
+        run: |
+          curl -sL https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64 -o /usr/local/bin/jq
+          chmod +x /usr/local/bin/jq
+          jq --version
 
       - name: Health check - verify environment is reachable
         run: |
