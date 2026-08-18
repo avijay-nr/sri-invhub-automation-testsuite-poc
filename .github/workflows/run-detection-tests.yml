@@ -66,17 +66,26 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        id: apt-cache
+        with:
+          path: /var/cache/apt/archives
+          key: apt-playwright-${{ runner.os }}-chromium-v1
+
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         timeout-minutes: 10
         run: |
-          sudo apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=30
+          sudo apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=60
           npx playwright install --with-deps chromium
 
       - name: Install Playwright system deps (cache hit)
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        timeout-minutes: 3
-        run: npx playwright install-deps chromium
+        if: steps.playwright-cache.outputs.cache-hit == 'true' && steps.apt-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 10
+        run: |
+          sudo apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=60
+          npx playwright install-deps chromium
 
       - name: Health check - verify environment is reachable
         run: |
