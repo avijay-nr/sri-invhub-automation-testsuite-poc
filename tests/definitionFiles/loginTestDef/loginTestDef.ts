@@ -11,6 +11,10 @@ const authSelectors = {
   verifyButton: 'button:has-text("Verify")',
 };
 
+// ✅ Per-environment session file — no cross-env conflicts!
+const env = process.env.TEST_ENV || 'QA-Dev';
+const SESSION_FILE = path.resolve(`./auth/session-${env}.json`);
+
 function configureLoginTestTimeoutFromEnv(): void {
   const timeoutFromEnv = process.env.LOGIN_TEST_TIMEOUT_MS?.trim();
   const timeoutMs = Number.parseInt(timeoutFromEnv || String(testSettings.loginTestTimeoutMs), 10);
@@ -76,10 +80,8 @@ export class LoginDef {
 
   private async saveUpdatedTokensToSession(): Promise<void> {
     try {
-      const sessionPath = path.resolve('./auth/session.json');
-
-      if (!fs.existsSync(sessionPath)) {
-        console.log('ℹ️ session.json not found — skipping token save');
+      if (!fs.existsSync(SESSION_FILE)) {
+        console.log(`ℹ️ session-${env}.json not found — skipping token save`);
         return;
       }
 
@@ -91,7 +93,7 @@ export class LoginDef {
         return;
       }
 
-      const session = JSON.parse(fs.readFileSync(sessionPath, 'utf-8'));
+      const session = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf-8'));
 
       if (session.origins) {
         for (const origin of session.origins) {
@@ -104,10 +106,10 @@ export class LoginDef {
         }
       }
 
-      fs.writeFileSync(sessionPath, JSON.stringify(session, null, 2));
-      console.log('💾 Rotated tokens saved to session.json');
+      fs.writeFileSync(SESSION_FILE, JSON.stringify(session, null, 2));
+      console.log(`💾 Rotated tokens saved to session-${env}.json`);
     } catch (err) {
-      console.log('⚠️ Could not save updated tokens to session.json:', err);
+      console.log('⚠️ Could not save updated tokens to session file:', err);
     }
   }
 
@@ -130,10 +132,9 @@ export class LoginDef {
         if (tokens?.accessToken && tokens?.refreshToken) {
           console.log('🔄 App rotated tokens — intercepted & saving immediately!');
 
-          const sessionPath = path.resolve('./auth/session.json');
-          if (!fs.existsSync(sessionPath)) return;
+          if (!fs.existsSync(SESSION_FILE)) return;
 
-          const session = JSON.parse(fs.readFileSync(sessionPath, 'utf-8'));
+          const session = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf-8'));
 
           if (session.origins) {
             for (const origin of session.origins) {
@@ -146,8 +147,8 @@ export class LoginDef {
             }
           }
 
-          fs.writeFileSync(sessionPath, JSON.stringify(session, null, 2));
-          console.log('💾 Intercepted rotation saved to session.json ✅');
+          fs.writeFileSync(SESSION_FILE, JSON.stringify(session, null, 2));
+          console.log(`💾 Intercepted rotation saved to session-${env}.json ✅`);
         }
       } catch {
         // ignore — not every graphql response is a token rotation
@@ -161,7 +162,7 @@ export class LoginDef {
    * Flow:
    * 1. Navigate to appUrl with session (tokens in localStorage)
    * 2. App JS sees expired AT → refreshes using RT → auto-navigates
-   * 3. Our interceptor catches new tokens → saves to session.json
+   * 3. Our interceptor catches new tokens → saves to session-{env}.json
    * 4. We just check: are we on the app or login page?
    */
   async loginIfNeeded(): Promise<void> {

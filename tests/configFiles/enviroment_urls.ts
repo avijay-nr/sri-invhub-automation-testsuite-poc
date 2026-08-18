@@ -1,6 +1,6 @@
 export const ENV_URLS: Record<string, string> = {
-  'QA-Dev': 'https://ih-sri-dev.symphonyai.dev/login',
-  'QA-Test': 'https://ih-sri-test.symphonyai.dev/login',
+  'QA-Dev':  'https://ih-sri-dev.symphonyai.dev',   
+  'QA-Test': 'https://ih-sri-test.symphonyai.dev', 
 };
 
 export function getBaseUrl(): string {

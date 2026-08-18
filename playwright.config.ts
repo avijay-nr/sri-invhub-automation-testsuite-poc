@@ -4,6 +4,10 @@ import { testSettings } from './tests/configFiles/config';
 
 dotenv.config();
 
+// ✅ Per-environment session file
+const env = process.env.TEST_ENV || 'QA-Dev';
+const sessionFile = `./auth/session-${env}.json`;
+
 export default defineConfig({
   testDir: './tests',
   timeout: 180_000,        
@@ -33,7 +37,7 @@ export default defineConfig({
       use: {
         browserName: 'chromium',
         channel: 'chrome',
-        storageState: './auth/session.json',
+        storageState: sessionFile,   // ✅ dynamic per env!
         viewport: null,
       },
     },

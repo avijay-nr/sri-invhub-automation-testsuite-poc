@@ -91,6 +91,8 @@ jobs:
           CUSTOM_ENV_URL: ${{ github.event.inputs.custom_env_url }}
           TAGS: ${{ github.event.inputs.tags }}
           PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-report/results.json
+          OTP_FETCH_CMD: 'curl -s -X POST "${{ secrets.OTP_FLOW_URL }}" -H "Content-Type: application/json" -d "{\"email\": \"${{ github.event.inputs.email }}\"}"'
+          OTP_REGEX: '\d{6}'
 
       - name: Flaky test report
         if: always()
