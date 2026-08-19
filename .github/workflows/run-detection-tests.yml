@@ -45,6 +45,11 @@ on:
 jobs:
   run-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-jammy
 
     steps:
       - name: Checkout code
@@ -58,8 +63,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+      - name: Restore cached session
+        uses: actions/cache@v4
+        with:
+          path: ./auth/session-*.json
+          key: auth-session-${{ github.event.inputs.email }}-${{ github.event.inputs.environment }}-${{ github.run_id }}
+          restore-keys: |
+            auth-session-${{ github.event.inputs.email }}-${{ github.event.inputs.environment }}-
+
+      - name: Install system tools
+        run: |
+          curl -sL https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64 -o /usr/local/bin/jq
+          chmod +x /usr/local/bin/jq
+          jq --version
 
       - name: Health check - verify environment is reachable
         run: |
@@ -144,7 +160,23 @@ jobs:
           OTP_FETCH_CMD: 'curl -s -X POST "${{ env.RESOLVED_OTP_URL }}" -H "Content-Type: application/json" -d "{\"email\": \"${{ github.event.inputs.email }}\"}"'
           OTP_REGEX: '\d{6}'
 
-      - name: Flaky test report
+      - name: Save session cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ./auth/session-*.json
+          key: auth-session-${{ github.event.inputs.email }}-${{ github.event.inputs.environment }}-${{ github.run_id }}
+
+      - name: Set report URL
+        if: always()
+        run: |
+          REPO_NAME="${{ github.event.repository.name }}"
+          OWNER="${{ github.repository_owner }}"
+          RUN_ID="${{ github.run_id }}"
+          PAGES_URL="https://${OWNER}.github.io/${REPO_NAME}/reports/${RUN_ID}"
+          echo "PAGES_URL=$PAGES_URL" >> $GITHUB_ENV
+
+      - name: Test results summary
         if: always()
         run: |
           echo "## 🧪 SRI - IH Test Results Summary" >> $GITHUB_STEP_SUMMARY
@@ -161,7 +193,7 @@ jobs:
             FAILED=$(jq '.stats.unexpected // 0' playwright-report/results.json)
             FLAKY=$(jq '.stats.flaky // 0' playwright-report/results.json)
             SKIPPED=$(jq '.stats.skipped // 0' playwright-report/results.json)
-            TOTAL=$(jq '.stats.total // 0' playwright-report/results.json)
+            TOTAL=$((PASSED + FAILED + FLAKY + SKIPPED))
 
             echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
             echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
@@ -173,14 +205,93 @@ jobs:
           else
             echo "⚠️ No results.json found — report may not have generated." >> $GITHUB_STEP_SUMMARY
           fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Report" >> $GITHUB_STEP_SUMMARY
+          echo "- 🌐 [Live HTML Report (GitHub Pages)](${{ env.PAGES_URL }})" >> $GITHUB_STEP_SUMMARY
         env:
           TEST_ENV: ${{ github.event.inputs.environment }}
           TEST_USER_EMAIL: ${{ github.event.inputs.email }}
           TAGS: ${{ env.RESOLVED_TAG }}
 
-      - name: Upload HTML report
+      - name: Upload HTML report (artifact backup)
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ih-test-report
           path: playwright-report/
+
+      - name: Deploy report to GitHub Pages
+        if: always()
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: playwright-report
+          destination_dir: reports/${{ github.run_id }}
+          keep_files: true
+
+      - name: Notify Teams
+        if: always()
+        run: |
+          if [ -f playwright-report/results.json ]; then
+            PASSED=$(jq '.stats.expected // 0' playwright-report/results.json)
+            FAILED=$(jq '.stats.unexpected // 0' playwright-report/results.json)
+            FLAKY=$(jq '.stats.flaky // 0' playwright-report/results.json)
+            SKIPPED=$(jq '.stats.skipped // 0' playwright-report/results.json)
+            TOTAL=$((PASSED + FAILED + FLAKY + SKIPPED))
+          else
+            PASSED=0; FAILED=0; FLAKY=0; SKIPPED=0; TOTAL=0
+          fi
+
+          if [ "$FAILED" -gt 0 ]; then
+            STATUS_TEXT="❌ FAILED"
+            CARD_COLOR="Attention"
+          else
+            STATUS_TEXT="✅ PASSED"
+            CARD_COLOR="Good"
+          fi
+
+          curl -s -X POST "${{ secrets.TEAMS_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"type\": \"message\",
+              \"attachments\": [{
+                \"contentType\": \"application/vnd.microsoft.card.adaptive\",
+                \"content\": {
+                  \"\$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",
+                  \"type\": \"AdaptiveCard\",
+                  \"version\": \"1.4\",
+                  \"body\": [
+                    {
+                      \"type\": \"TextBlock\",
+                      \"text\": \"🧪 SRI - IH Test Results: $STATUS_TEXT\",
+                      \"weight\": \"Bolder\",
+                      \"size\": \"Large\",
+                      \"color\": \"$CARD_COLOR\"
+                    },
+                    {
+                      \"type\": \"FactSet\",
+                      \"facts\": [
+                        { \"title\": \"🌍 Environment\", \"value\": \"${{ github.event.inputs.environment }}\" },
+                        { \"title\": \"🏷️ Tags\", \"value\": \"${TAGS:-all tests}\" },
+                        { \"title\": \"👤 Triggered by\", \"value\": \"${{ github.actor }}\" },
+                        { \"title\": \"✅ Passed\", \"value\": \"$PASSED\" },
+                        { \"title\": \"❌ Failed\", \"value\": \"$FAILED\" },
+                        { \"title\": \"⚠️ Flaky\", \"value\": \"$FLAKY\" },
+                        { \"title\": \"⏭️ Skipped\", \"value\": \"$SKIPPED\" },
+                        { \"title\": \"📊 Total\", \"value\": \"$TOTAL\" }
+                      ]
+                    }
+                  ],
+                  \"actions\": [
+                    {
+                      \"type\": \"Action.OpenUrl\",
+                      \"title\": \"🌐 View Live HTML Report\",
+                      \"url\": \"${{ env.PAGES_URL }}\"
+                    }
+                  ]
+                }
+              }]
+            }"
+        env:
+          TAGS: ${{ env.RESOLVED_TAG }}

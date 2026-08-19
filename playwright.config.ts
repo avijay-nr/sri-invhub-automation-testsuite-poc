@@ -36,7 +36,6 @@ export default defineConfig({
       dependencies: ['setup'],
       use: {
         browserName: 'chromium',
-        channel: 'chrome',
         storageState: sessionFile,   // ✅ dynamic per env!
         viewport: null,
       },
