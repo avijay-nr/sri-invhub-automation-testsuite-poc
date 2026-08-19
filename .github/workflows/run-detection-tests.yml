@@ -205,3 +205,71 @@ jobs:
         with:
           name: ih-test-report
           path: playwright-report/
+
+      - name: Notify Teams
+        if: always()
+        run: |
+          if [ -f playwright-report/results.json ]; then
+            PASSED=$(jq '.stats.expected // 0' playwright-report/results.json)
+            FAILED=$(jq '.stats.unexpected // 0' playwright-report/results.json)
+            FLAKY=$(jq '.stats.flaky // 0' playwright-report/results.json)
+            SKIPPED=$(jq '.stats.skipped // 0' playwright-report/results.json)
+            TOTAL=$(jq '.stats.total // 0' playwright-report/results.json)
+          else
+            PASSED=0; FAILED=0; FLAKY=0; SKIPPED=0; TOTAL=0
+          fi
+
+          if [ "$FAILED" -gt 0 ]; then
+            STATUS_TEXT="❌ FAILED"
+            CARD_COLOR="Attention"
+          else
+            STATUS_TEXT="✅ PASSED"
+            CARD_COLOR="Good"
+          fi
+
+          REPORT_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          curl -s -X POST "${{ secrets.TEAMS_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"type\": \"message\",
+              \"attachments\": [{
+                \"contentType\": \"application/vnd.microsoft.card.adaptive\",
+                \"content\": {
+                  \"\$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",
+                  \"type\": \"AdaptiveCard\",
+                  \"version\": \"1.4\",
+                  \"body\": [
+                    {
+                      \"type\": \"TextBlock\",
+                      \"text\": \"🧪 SRI - IH Test Results: $STATUS_TEXT\",
+                      \"weight\": \"Bolder\",
+                      \"size\": \"Large\",
+                      \"color\": \"$CARD_COLOR\"
+                    },
+                    {
+                      \"type\": \"FactSet\",
+                      \"facts\": [
+                        { \"title\": \"🌍 Environment\", \"value\": \"${{ github.event.inputs.environment }}\" },
+                        { \"title\": \"🏷️ Tags\", \"value\": \"${TAGS:-all tests}\" },
+                        { \"title\": \"👤 Triggered by\", \"value\": \"${{ github.actor }}\" },
+                        { \"title\": \"✅ Passed\", \"value\": \"$PASSED\" },
+                        { \"title\": \"❌ Failed\", \"value\": \"$FAILED\" },
+                        { \"title\": \"⚠️ Flaky\", \"value\": \"$FLAKY\" },
+                        { \"title\": \"⏭️ Skipped\", \"value\": \"$SKIPPED\" },
+                        { \"title\": \"📊 Total\", \"value\": \"$TOTAL\" }
+                      ]
+                    }
+                  ],
+                  \"actions\": [
+                    {
+                      \"type\": \"Action.OpenUrl\",
+                      \"title\": \"📊 View Full Report\",
+                      \"url\": \"$REPORT_URL\"
+                    }
+                  ]
+                }
+              }]
+            }"
+        env:
+          TAGS: ${{ env.RESOLVED_TAG }}
