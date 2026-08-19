@@ -167,16 +167,14 @@ jobs:
           path: ./auth/session-*.json
           key: auth-session-${{ github.event.inputs.email }}-${{ github.event.inputs.environment }}-${{ github.run_id }}
 
-      - name: Set report URLs
+      - name: Set report URL
         if: always()
         run: |
           REPO_NAME="${{ github.event.repository.name }}"
           OWNER="${{ github.repository_owner }}"
           RUN_ID="${{ github.run_id }}"
           PAGES_URL="https://${OWNER}.github.io/${REPO_NAME}/reports/${RUN_ID}"
-          ACTIONS_URL="https://github.com/${{ github.repository }}/actions/runs/${RUN_ID}"
           echo "PAGES_URL=$PAGES_URL" >> $GITHUB_ENV
-          echo "ACTIONS_URL=$ACTIONS_URL" >> $GITHUB_ENV
 
       - name: Test results summary
         if: always()
@@ -195,7 +193,7 @@ jobs:
             FAILED=$(jq '.stats.unexpected // 0' playwright-report/results.json)
             FLAKY=$(jq '.stats.flaky // 0' playwright-report/results.json)
             SKIPPED=$(jq '.stats.skipped // 0' playwright-report/results.json)
-            TOTAL=$(jq '.stats.total // 0' playwright-report/results.json)
+            TOTAL=$((PASSED + FAILED + FLAKY + SKIPPED))
 
             echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
             echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
@@ -209,9 +207,8 @@ jobs:
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔗 Reports" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Report" >> $GITHUB_STEP_SUMMARY
           echo "- 🌐 [Live HTML Report (GitHub Pages)](${{ env.PAGES_URL }})" >> $GITHUB_STEP_SUMMARY
-          echo "- ⚙️ [GitHub Actions Run](${{ env.ACTIONS_URL }})" >> $GITHUB_STEP_SUMMARY
         env:
           TEST_ENV: ${{ github.event.inputs.environment }}
           TEST_USER_EMAIL: ${{ github.event.inputs.email }}
@@ -241,7 +238,7 @@ jobs:
             FAILED=$(jq '.stats.unexpected // 0' playwright-report/results.json)
             FLAKY=$(jq '.stats.flaky // 0' playwright-report/results.json)
             SKIPPED=$(jq '.stats.skipped // 0' playwright-report/results.json)
-            TOTAL=$(jq '.stats.total // 0' playwright-report/results.json)
+            TOTAL=$((PASSED + FAILED + FLAKY + SKIPPED))
           else
             PASSED=0; FAILED=0; FLAKY=0; SKIPPED=0; TOTAL=0
           fi
@@ -291,11 +288,6 @@ jobs:
                       \"type\": \"Action.OpenUrl\",
                       \"title\": \"🌐 View Live HTML Report\",
                       \"url\": \"${{ env.PAGES_URL }}\"
-                    },
-                    {
-                      \"type\": \"Action.OpenUrl\",
-                      \"title\": \"⚙️ GitHub Actions Run\",
-                      \"url\": \"${{ env.ACTIONS_URL }}\"
                     }
                   ]
                 }
